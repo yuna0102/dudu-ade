@@ -9,6 +9,7 @@ import { registerBoardMarkdownHandlers } from './board-markdown'
 import { registerBoardRestoreHandler } from './board-restore'
 import { registerTranscriptAssetHandlers } from './transcript-assets'
 import { registerArtifactPageHandlers } from './artifact-page-protocol'
+import { registerFormSavedWatch } from './form-saved-watch'
 
 const TAIL_BYTES = 256 * 1024
 const PS_TIMEOUT_MS = 4_000
@@ -205,6 +206,7 @@ export function registerDuduAdeHandlers(getProjectRoots: () => string[] = () => 
   registerBoardRestoreHandler()
   registerTranscriptAssetHandlers(readClaudePanes)
   registerArtifactPageHandlers()
+  registerFormSavedWatch()
   ipcMain.handle('duduAde:terminalAgentModels', () => readTerminalAgentModels())
   ipcMain.handle('duduAde:terminalHandoffs', () => recentTerminalHandoffs())
   ipcMain.handle('duduAde:recordHandoff', (_event, from: unknown, to: unknown) => {

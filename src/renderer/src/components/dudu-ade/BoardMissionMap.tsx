@@ -1,9 +1,14 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Radar } from 'lucide-react'
+import { Bell, ChevronDown, ChevronUp, Radar } from 'lucide-react'
 import type { WorktreeStatus } from '@/lib/worktree-status'
 import { cn } from '@/lib/utils'
 import type { TerminalAgentModel } from '../../../../shared/dudu-ade-terminal-models'
-import { BUCKET_LABELS, agentBucket, type BoardAgentBucket } from './board-agent-labels'
+import {
+  BUCKET_LABELS,
+  agentBucket,
+  boardAttention,
+  type BoardAgentBucket
+} from './board-agent-labels'
 import { boundsOf, type BoardRect } from './board-layout-state'
 import { AgentStatusChip, ModelBadge } from './BoardAgentBadges'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
@@ -12,6 +17,7 @@ export type MissionMapItem = {
   key: string
   title: string
   status: WorktreeStatus | undefined
+  unread?: boolean
   model: TerminalAgentModel | undefined
 }
 
@@ -36,10 +42,15 @@ export function BoardMissionMap({
   onJump: (point: { x: number; y: number }) => void
 }): React.JSX.Element {
   const [open, setOpen] = useState(true)
+  const [onlyNotices, setOnlyNotices] = useState(false)
   const totals: Record<BoardAgentBucket, number> = { working: 0, attention: 0, waiting: 0 }
+  let notices = 0
   for (const group of groups) {
     for (const item of group.items) {
       totals[agentBucket(item.status)] += 1
+      if (boardAttention(item.status, item.unread)) {
+        notices += 1
+      }
     }
   }
   const world = boundsOf([...rects.map((entry) => entry.rect), viewportRect]) ?? viewportRect
@@ -66,6 +77,35 @@ export function BoardMissionMap({
       >
         <Radar className="size-3.5 text-muted-foreground" />
         <span className="font-medium">{DUDU_ADE_COPY.missionMap}</span>
+        {notices > 0 ? (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-pressed={onlyNotices}
+            aria-label={`${DUDU_ADE_COPY.noticeOnly} ${notices}`}
+            title={DUDU_ADE_COPY.noticeOnly}
+            className={cn(
+              'inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-3xs font-medium',
+              onlyNotices
+                ? 'bg-orange-500 text-white'
+                : 'bg-orange-500/20 text-orange-600 dark:text-orange-300'
+            )}
+            onClick={(event) => {
+              event.stopPropagation()
+              setOnlyNotices(!onlyNotices)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                event.stopPropagation()
+                setOnlyNotices(!onlyNotices)
+              }
+            }}
+          >
+            <Bell className="size-3" />
+            {notices}
+          </span>
+        ) : null}
         <div className="flex flex-1 items-center justify-end gap-1.5 text-3xs text-muted-foreground">
           {BUCKET_ORDER.map((bucket) => (
             <span
@@ -122,27 +162,35 @@ export function BoardMissionMap({
             />
           </svg>
           <div className="max-h-72 overflow-y-auto scrollbar-sleek px-1.5 pb-1.5">
-            {groups.map((group) => (
-              <div key={group.id} className="mb-1">
-                <div className="flex items-center gap-1.5 px-1 py-0.5 text-2xs font-medium">
-                  <span className="size-2 rounded-full" style={{ background: group.color }} />
-                  <span className="truncate">{group.name}</span>
-                  <span className="text-muted-foreground">{group.items.length}</span>
+            {groups
+              .map((group) => ({
+                ...group,
+                items: onlyNotices
+                  ? group.items.filter((item) => boardAttention(item.status, item.unread))
+                  : group.items
+              }))
+              .filter((group) => group.items.length > 0)
+              .map((group) => (
+                <div key={group.id} className="mb-1">
+                  <div className="flex items-center gap-1.5 px-1 py-0.5 text-2xs font-medium">
+                    <span className="size-2 rounded-full" style={{ background: group.color }} />
+                    <span className="truncate">{group.name}</span>
+                    <span className="text-muted-foreground">{group.items.length}</span>
+                  </div>
+                  {group.items.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className="flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-2xs hover:bg-muted/70"
+                      onClick={() => onFocus(item.key)}
+                    >
+                      <AgentStatusChip status={item.status} unread={item.unread} compact />
+                      <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                      <ModelBadge model={item.model} />
+                    </button>
+                  ))}
                 </div>
-                {group.items.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className="flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-2xs hover:bg-muted/70"
-                    onClick={() => onFocus(item.key)}
-                  >
-                    <AgentStatusChip status={item.status} compact />
-                    <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                    <ModelBadge model={item.model} />
-                  </button>
-                ))}
-              </div>
-            ))}
+              ))}
           </div>
         </>
       ) : null}

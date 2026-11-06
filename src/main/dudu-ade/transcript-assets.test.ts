@@ -1,4 +1,4 @@
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +14,41 @@ const write = (path: string, name = 'Write'): string =>
     timestamp: '2026-11-05T00:00:00.000Z',
     message: { content: [{ type: 'tool_use', name, input: { file_path: path, content: 'x' } }] }
   })
+
+const bashLine = (command: string, cwd = '/w'): Buffer =>
+  line({
+    type: 'assistant',
+    cwd,
+    timestamp: '2026-11-05T00:00:00.000Z',
+    message: { content: [{ type: 'tool_use', name: 'Bash', input: { command } }] }
+  })
+
+describe('refsInLine from shell commands', () => {
+  it('takes what a command wrote as a pending mention, with the command time', () => {
+    expect(refsInLine(bashLine('cp a.png out/b.png && echo x > n.md'), '/h')).toEqual([
+      {
+        location: '/w/out/b.png',
+        kind: 'image',
+        at: Date.parse('2026-11-05T00:00:00.000Z'),
+        mentioned: true,
+        bash: true
+      },
+      {
+        location: '/w/n.md',
+        kind: 'markdown',
+        at: Date.parse('2026-11-05T00:00:00.000Z'),
+        mentioned: true,
+        bash: true
+      }
+    ])
+  })
+
+  it('drops other kinds and personal paths, and a command that wrote nothing', () => {
+    expect(refsInLine(bashLine('ls -la'), '/h')).toEqual([])
+    expect(refsInLine(bashLine('echo a > run.log'), '/h')).toEqual([])
+    expect(refsInLine(bashLine('echo a > /Users/x/.claude/memory.md'), '/h')).toEqual([])
+  })
+})
 
 describe('refsInLine', () => {
   it('takes Write and Edit targets of tracked kinds with the line time, and nothing else', () => {
@@ -112,6 +147,28 @@ describe('log reading', () => {
     const logs: Record<string, { refs: { location: string }[] }> = {}
     await updateLogState(logs as never, path)
     expect(logs[path].refs.map((ref) => ref.location)).toEqual([real])
+  })
+
+  it('keeps a shell target only when the file is there and was written after the command', async () => {
+    const path = temp()
+    const made = join(dir, 'made.png')
+    const old = join(dir, 'old.png')
+    writeFileSync(made, 'x')
+    writeFileSync(old, 'x')
+    utimesSync(old, new Date('2020-01-01'), new Date('2020-01-01'))
+    const command = (target: string): string =>
+      JSON.stringify({
+        type: 'assistant',
+        cwd: dir,
+        timestamp: new Date().toISOString(),
+        message: {
+          content: [{ type: 'tool_use', name: 'Bash', input: { command: `cp s.png ${target}` } }]
+        }
+      })
+    writeFileSync(path, `${[made, old, join(dir, 'never.png')].map(command).join('\n')}\n`)
+    const logs: Record<string, { refs: { location: string }[] }> = {}
+    await updateLogState(logs as never, path)
+    expect(logs[path].refs.map((ref) => ref.location)).toEqual([made])
   })
 
   it('continues from the offset, keeps earlier references, and restarts on a shrunken log', async () => {

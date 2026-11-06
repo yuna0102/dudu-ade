@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import type { CollectedAssetKind } from './asset-path-extraction'
 import type { CollectedAsset } from './dudu-ade-store'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
-import { useArtifactPageUrl } from './BoardArtifactBody'
+import { ArtifactPageFrame } from './ArtifactPageFrame'
 
 const MARKDOWN_PREVIEW_CHARS = 6000
 const MARKDOWN_FULL_CHARS = 400_000
@@ -146,25 +146,6 @@ function KindIconFallback({
   )
 }
 
-/** Static look only: no scripts, no same-origin access. Served from its folder when main allows, so split styles and images load. */
-function StaticHtmlFrame({
-  asset,
-  html
-}: {
-  asset: CollectedAsset
-  html: string
-}): React.JSX.Element {
-  const pageUrl = useArtifactPageUrl(asset.location)
-  return (
-    <iframe
-      title={assetDisplayName(asset)}
-      sandbox=""
-      {...(pageUrl ? { src: pageUrl } : { srcDoc: html })}
-      className="h-full w-full border-0 bg-white"
-    />
-  )
-}
-
 /** Thumbnail in the gallery; `detailed` (board cards) also renders HTML and video; `full` (large preview) adds PDF pages. */
 export function AssetPreview({
   asset,
@@ -179,7 +160,10 @@ export function AssetPreview({
 }): React.JSX.Element {
   const preview = useAssetPreview(asset, detailed || full, full)
   let body: React.JSX.Element
-  if (asset.missing) {
+  if (asset.kind === 'html' && (detailed || full) && !asset.missing) {
+    // Runs like the board's page card; the small gallery tiles keep the still type icon and open to the live page.
+    body = <ArtifactPageFrame asset={asset} title={assetDisplayName(asset)} />
+  } else if (asset.missing) {
     body = <KindIconFallback kind={asset.kind} label={DUDU_ADE_COPY.assetMissing} />
   } else if (!preview) {
     body = <KindIconFallback kind={asset.kind} />
@@ -208,8 +192,6 @@ export function AssetPreview({
           draggable={false}
         />
       )
-  } else if (asset.kind === 'html') {
-    body = <StaticHtmlFrame asset={asset} html={preview.text} />
   } else {
     body = (
       <div

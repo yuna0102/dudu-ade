@@ -54,8 +54,22 @@ export type ShellApi = {
   /** Dudu ADE desktop only: files and artifact links from the panes' conversation logs. */
   duduAdeTranscriptAssets?: (request: TranscriptAssetRequest) => Promise<TranscriptAssets>
   /** Dudu ADE desktop only: board artifact and Markdown cards; main decides which paths they may touch. */
-  duduAdeArtifactPageUrl?: (path: string) => Promise<string | null>
+  duduAdeArtifactPageUrl?: (
+    path: string,
+    formAllow?: { hash: string; ports: number[] }
+  ) => Promise<string | null>
+  /** A page's content hash and the local ports its forms post to, and whether the user's allowance still holds for it. */
+  /** A preview's form post came back: saved (saved=1 from its allowed port) or failed. Returns the way to stop listening. */
+  onDuduAdeFormSaved?: (
+    listener: (event: { page: string; verdict: 'saved' | 'failed' }) => void
+  ) => () => void
+  duduAdeArtifactFormInfo?: (
+    path: string,
+    formAllow?: { hash: string; ports: number[] }
+  ) => Promise<{ hash: string; ports: number[]; allowed: boolean } | null>
   duduAdeReadOutIndex?: () => Promise<{ outRoot: string; text: string }>
+  /** A published page with the same name and content as this local copy; only a suggestion for the user to confirm. */
+  duduAdeArtifactTwin?: (path: string) => Promise<{ artifactUrl: string; name: string } | null>
   /** Dudu ADE desktop only: the one-time board restore file's text; main reads one fixed path. */
   duduAdeReadBoardRestore?: () => Promise<string | null>
   duduAdeReadBoardLayout?: () => Promise<string | null>

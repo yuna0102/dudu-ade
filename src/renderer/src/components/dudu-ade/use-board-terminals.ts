@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import {
   resolveTerminalTabActivityStatus,
+  terminalTabHasUnreadActivity,
   type TerminalTabActivityStatus
 } from '@/components/tab-bar/terminal-tab-activity-status'
 import { listLocalBoardTerminals, type BoardTerminal } from './board-terminal-listing'
@@ -55,6 +56,8 @@ export type BoardTerminalMeta = {
   tabName: string | null
   /** False until the tab shows up in the app store (startup), so auto-classify waits for it. */
   tabFound: boolean
+  /** The window finished (or rang) and was not looked at; read through the app's own unread markers. */
+  unread?: boolean
 }
 
 /** Tab status and name per terminal, read as one string so unrelated store updates do not repaint the board. */
@@ -78,18 +81,24 @@ export function useBoardTerminalMeta(
           ptyIdsByTabId: s.ptyIdsByTabId,
           terminalLayout: s.terminalLayoutsByTabId?.[tab.id]
         })
-        return `${terminal.key}\u00011\u0001${status}\u0001${tab.customTitle ?? ''}`
+        const unread = terminalTabHasUnreadActivity({
+          terminalTabId: tab.id,
+          unreadTerminalTabs: s.unreadTerminalTabs,
+          unreadAgentCompletionPanes: s.unreadAgentCompletionPanes
+        })
+        return `${terminal.key}\u00011\u0001${status}\u0001${tab.customTitle ?? ''}\u0001${unread ? 1 : 0}`
       })
       .join('\u0002')
   )
   return useMemo(() => {
     const meta = new Map<string, BoardTerminalMeta>()
     for (const row of encoded ? encoded.split('\u0002') : []) {
-      const [key, found, status, tabName] = row.split('\u0001')
+      const [key, found, status, tabName, unread] = row.split('\u0001')
       meta.set(key, {
         status: (status || undefined) as TerminalTabActivityStatus | undefined,
         tabName: tabName || null,
-        tabFound: found === '1'
+        tabFound: found === '1',
+        unread: unread === '1'
       })
     }
     return meta

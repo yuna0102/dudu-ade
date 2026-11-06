@@ -29,7 +29,7 @@ export function BoardCardFrame({
   onCommit: (geometry: BoardCardGeometry, change: BoardCardChange) => void
   onRemove: () => void
   icon?: React.ReactNode
-  title: string
+  title: React.ReactNode
   subtitle?: string
   badges?: React.ReactNode
   actions?: React.ReactNode

@@ -9,6 +9,7 @@ import type { BoardTerminal } from './board-terminal-listing'
 import { BoardNoteCard } from './BoardNoteCard'
 import { chatStaysLive } from './board-terminal-focus'
 import { BoardTerminalCard, cardDisplayTitle } from './BoardTerminalCard'
+import { sourceOf } from './asset-source'
 import type { CollectedAsset } from './dudu-ade-store-types'
 import type { BoardCardChange } from './use-board-card-drag'
 import type { BoardTerminalMeta } from './use-board-terminals'
@@ -79,6 +80,7 @@ export function BoardCards({
               geometry={geometry}
               zoom={zoom}
               status={meta.get(key)?.status}
+              unread={meta.get(key)?.unread}
               model={terminalModels[paneKeyOf(terminal)]}
               highlighted={highlighted}
               onCommitCard={onCommitCard}
@@ -126,8 +128,23 @@ export function BoardCards({
           panel={board.assetPanels[key]}
           assets={owned}
           zoom={zoom}
+          source={sourceOf(terminalsByKey.get(key))}
+          others={otherCards(panels, key, board.names, terminalsByKey)}
+          showEmpty={focusedKey === key}
         />
       ))}
     </>
   )
+}
+
+/** The other windows on the board, by the name their card goes by. */
+function otherCards(
+  panels: readonly { key: string }[],
+  self: string,
+  names: Readonly<Record<string, string>> | undefined,
+  terminals: ReadonlyMap<string, BoardTerminal>
+): { key: string; name: string }[] {
+  return panels
+    .filter((entry) => entry.key !== self)
+    .map(({ key }) => ({ key, name: names?.[key] || terminals.get(key)?.title || key }))
 }

@@ -1,3 +1,4 @@
+import type { FormAllow } from './asset-meta'
 import type { TerminalAgentModel } from '../../../../shared/dudu-ade-terminal-models'
 import type { CollectedAssetKind } from './asset-path-extraction'
 import type {
@@ -90,5 +91,28 @@ export type DuduAdeState = {
   setDock: (patch: Partial<AssetDockState>) => void
   togglePinAsset: (assetId: string) => void
   setPreviewAsset: (assetId: string | null) => void
+  /** The asset whose shown name is being edited, wherever it is listed. */
+  renamingAssetId: string | null
+  startRenameAsset: (assetId: string | null) => void
+  /** The HTML asset whose artifact page the user is typing in. */
+  linkingAssetId: string | null
+  startLinkAsset: (assetId: string | null) => void
+  /** The HTML asset whose form saving the user is being asked to allow. */
+  formAllowingAssetId: string | null
+  startFormAllow: (assetId: string | null) => void
+  /** Per page file: how many times its preview was sent back to the page itself (after a saved form). */
+  pageResets: Record<string, number>
+  resetPage: (path: string) => void
+  /** Sets or clears (null) what the active board says about one asset. */
+  setAssetMeta: (
+    assetId: string,
+    patch: { name?: string | null; artifactUrl?: string | null; formAllow?: FormAllow | null }
+  ) => void
+  /** Files picked or typed by hand for a card: recorded as assets of its window and kept on its list. */
+  addManualAssets: (cardKey: string, source: CollectedAssetSource, paths: readonly string[]) => void
+  /** Also lists this asset on another card. */
+  shareAsset: (assetId: string, cardKey: string) => void
+  /** Off a card's list: dropped for good if added by hand, hidden if the collector found it. */
+  removeAssetFromCard: (assetId: string, cardKey: string, collectedHere: boolean) => void
   setTerminalModels: (models: Record<string, TerminalAgentModel>) => void
 }

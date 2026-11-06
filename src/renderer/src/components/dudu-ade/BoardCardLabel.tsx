@@ -33,12 +33,14 @@ export function BoardCardLabel({
   terminal,
   title,
   status,
+  unread,
   model,
   onActivate
 }: {
   terminal: BoardTerminal
   title: string
   status: WorktreeStatus | undefined
+  unread?: boolean
   model: TerminalAgentModel | undefined
   onActivate: () => void
 }): React.JSX.Element {
@@ -89,7 +91,7 @@ export function BoardCardLabel({
         <span className="min-w-0 truncate">{title}</span>
       )}
       <ModelBadge model={model} />
-      <AgentStatusChip status={status} />
+      <AgentStatusChip status={status} unread={unread} />
     </div>
   )
 }

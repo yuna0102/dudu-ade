@@ -3,7 +3,8 @@ import { ExternalLink, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { assetCardKey, type BoardCardGeometry } from './board-layout-state'
 import type { BoardCardChange } from './use-board-card-drag'
-import { AssetPreview, assetDisplayName, assetKindLabel } from './AssetPreview'
+import { AssetName } from './AssetName'
+import { AssetPreview, assetKindLabel } from './AssetPreview'
 import { openCollectedAsset } from './asset-actions'
 import { BoardCardFrame } from './BoardCardFrame'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
@@ -41,7 +42,7 @@ export const BoardAssetCard = memo(function BoardAssetCard({
           {assetKindLabel(asset.kind)}
         </span>
       }
-      title={assetDisplayName(asset)}
+      title={<AssetName asset={asset} />}
       subtitle={sourceLabel ?? undefined}
       actions={
         <>

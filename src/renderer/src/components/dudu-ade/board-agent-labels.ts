@@ -1,3 +1,4 @@
+import { resolveTerminalTabAttentionBadge } from '@/components/tab-bar/terminal-tab-activity-status'
 import type { WorktreeStatus } from '@/lib/worktree-status'
 
 /** Mission-map buckets: working, needs the user, or waiting (everything settled or quiet). */
@@ -11,6 +12,27 @@ export function agentBucket(status: WorktreeStatus | undefined): BoardAgentBucke
     return 'attention'
   }
   return 'waiting'
+}
+
+/**
+ * What a window needs from the user, as one kind of notice: it asks for an answer (a permission), or it finished and
+ * the result was not looked at yet. Both come from the app's own rules for tabs (the same ones the tab strip
+ * uses), so opening or typing in the window, which marks it read, takes the notice away. A finished window
+ * that was already read is not a notice.
+ */
+export type BoardAttention = 'respond' | 'review'
+
+export function boardAttention(
+  status: WorktreeStatus | undefined,
+  unread: boolean | undefined
+): BoardAttention | null {
+  const badge = resolveTerminalTabAttentionBadge({ status, hasUnread: unread === true })
+  return badge === 'permission' ? 'respond' : badge === 'unread' ? 'review' : null
+}
+
+export const ATTENTION_LABELS: Record<BoardAttention, string> = {
+  respond: '확인 필요',
+  review: '검수 필요'
 }
 
 export const BUCKET_LABELS: Record<BoardAgentBucket, string> = {

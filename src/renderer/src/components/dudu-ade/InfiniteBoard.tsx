@@ -29,6 +29,7 @@ import { ALL_WORKSPACES, BoardToolbar } from './BoardToolbar'
 import { useBoardAutoSync, useBoardViewModel } from './use-board-view-model'
 import { cardDisplayTitle } from './BoardTerminalCard'
 import { useArtifactIndexRepair } from './use-artifact-index-repair'
+import { useRestoreManualAssets } from './use-manual-assets-restore'
 import { BoardWorkspaceTabs } from './BoardWorkspaceTabs'
 import type { BoardCardChange } from './use-board-card-drag'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
@@ -346,6 +347,7 @@ export function InfiniteBoard(): React.JSX.Element {
   const viewportRect = visibleBoardRect(viewport, screen)
 
   useArtifactIndexRepair(board.notes)
+  useRestoreManualAssets(board.assetPanels, terminalsByKey)
   const assetDrop = useBoardAssetDrop({ frames, toBoardPoint })
 
   const dotSize = GRID_DOT_SPACING * viewport.zoom

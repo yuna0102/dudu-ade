@@ -7,6 +7,7 @@ import { AssetGallery } from './AssetGallery'
 import { useBoardFocusGuard } from './use-board-focus-guard'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
 import { useDuduAdeStore, type DuduAdePanel } from './dudu-ade-store'
+import { useFormSavedWatch } from './form-saved'
 import { InfiniteBoard } from './InfiniteBoard'
 import { useAssetScanner } from './use-asset-scanner'
 import { useTerminalModelPoller } from './use-board-terminals'
@@ -41,6 +42,7 @@ export function DuduAdeOverlay({
   reserveWindowControls: boolean
 }): React.JSX.Element | null {
   useAssetScanner()
+  useFormSavedWatch()
   useTerminalModelPoller()
   const panel = useDuduAdeStore((s) => s.panel)
   const openPanel = useDuduAdeStore((s) => s.openPanel)

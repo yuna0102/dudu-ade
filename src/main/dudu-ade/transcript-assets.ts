@@ -14,6 +14,7 @@ import type {
   TranscriptAssetRequest,
   TranscriptAssets
 } from '../../shared/dudu-ade-terminal-models'
+import { bashOutputPaths } from '../../shared/dudu-ade-bash-targets'
 import { claudeProjectDirName, type ClaudePane } from './terminal-agent-models'
 
 const CHUNK_BYTES = 1024 * 1024
@@ -44,6 +45,8 @@ function isPersonalProjectDir(name: string, home = homedir()): boolean {
 export type LineRef = TranscriptAssetRef & {
   /** Only named in the agent's reply (Bash renders end up here); kept only if the file exists. */
   mentioned?: boolean
+  /** Named as the target of a shell command; kept only if the file is there and was written after the command. */
+  bash?: boolean
 }
 
 /** Paths a line's file tools touched or its reply names, and artifact links. Message text is parsed here and dropped. */
@@ -76,8 +79,22 @@ export function refsInLine(line: Buffer, home = homedir()): LineRef[] {
       type?: unknown
       name?: unknown
       text?: unknown
-      input?: { file_path?: unknown }
+      input?: { file_path?: unknown; command?: unknown }
     }[]) {
+      if (
+        block?.type === 'tool_use' &&
+        block.name === 'Bash' &&
+        typeof block.input?.command === 'string'
+      ) {
+        const cwd = typeof entry.cwd === 'string' && entry.cwd ? entry.cwd : home
+        for (const location of bashOutputPaths(block.input.command, cwd, home)) {
+          const kind = assetKindForPath(location)
+          if (kind && !NOT_ASSET_PATH.test(location)) {
+            refs.push({ location, kind, at, mentioned: true, bash: true })
+          }
+        }
+        continue
+      }
       if (block?.type === 'text' && typeof block.text === 'string') {
         const context = { baseDir: typeof entry.cwd === 'string' ? entry.cwd : '', homeDir: home }
         for (const { kind, location } of extractAssetReferences([block.text], context)) {
@@ -156,6 +173,12 @@ export async function readLinesFrom(
   return consumed
 }
 
+/** The file is there, and for a shell command's target it was also written no earlier than the command (a failed one leaves it alone). */
+async function isLiveFile(location: string, writtenSince: number | null): Promise<boolean> {
+  const file = await stat(location).catch(() => null)
+  return !!file?.isFile() && (writtenSince === null || file.mtimeMs >= writtenSince - 2_000)
+}
+
 /** Brings one log's references up to date; an unchanged file costs one stat. Returns whether anything changed. */
 export async function updateLogState(
   logs: Record<string, LogState>,
@@ -186,13 +209,8 @@ export async function updateLogState(
     }
   })
   const added: TranscriptAssetRef[] = []
-  for (const { mentioned, ...ref } of found.values()) {
-    if (
-      !mentioned ||
-      (await stat(ref.location)
-        .then((file) => file.isFile())
-        .catch(() => false))
-    ) {
+  for (const { mentioned, bash, ...ref } of found.values()) {
+    if (!mentioned || (await isLiveFile(ref.location, bash ? ref.at : null))) {
       added.push(ref)
     }
   }

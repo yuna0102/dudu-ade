@@ -3,15 +3,17 @@ import {
   ChevronRight,
   FolderPlus,
   PanelLeftClose,
+  FilePlus,
+  Link2,
   PanelLeftOpen,
   Trash2
 } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { isImeOwnedKeyboardEvent } from '@/lib/ime-composition-keyboard-event'
-import { cn } from '@/lib/utils'
 import { ASSET_DRAG_TYPE } from './AssetDock'
-import { KIND_ICONS, assetDisplayName, useAssetPreview } from './AssetPreview'
+import { AssetRow } from './BoardAssetRow'
+import { manualAssetPath } from './asset-meta'
 import {
   COLLAPSED_PANEL_WIDTH,
   EMPTY_ASSET_PANEL,
@@ -27,138 +29,14 @@ import {
   type BoardAssetPanel as PanelState
 } from './board-asset-panels'
 import { cardHeight, type BoardCardGeometry } from './board-layout-state'
+import { boardTerminalKey } from './board-terminal-listing'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
 import { useDuduAdeStore } from './dudu-ade-store'
-import type { CollectedAsset } from './dudu-ade-store-types'
+import type { CollectedAsset, CollectedAssetSource } from './dudu-ade-store-types'
 
 /** Below this board zoom 12px text is unreadable, so rows show icons only. */
 const READABLE_ZOOM = 0.5
 const CATEGORY_DRAG_TYPE = 'application/x-dudu-ade-asset-category'
-
-/** Reads the image only once mounted, and it mounts only when its row scrolls into view. */
-function AssetThumbnailImage({ asset }: { asset: CollectedAsset }): React.JSX.Element {
-  const preview = useAssetPreview(asset, false, false)
-  const Icon = KIND_ICONS[asset.kind]
-  return preview?.state === 'media' ? (
-    <img
-      src={preview.src}
-      alt=""
-      draggable={false}
-      decoding="async"
-      className="size-6 shrink-0 rounded object-cover"
-    />
-  ) : (
-    <Icon className="size-3.5 shrink-0 text-[#6E48E5]" />
-  )
-}
-
-function AssetRowIcon({ asset }: { asset: CollectedAsset }): React.JSX.Element {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [visible, setVisible] = useState(false)
-  const wantsThumbnail = asset.kind === 'image' && !asset.missing
-  useEffect(() => {
-    const element = ref.current
-    if (!element || !wantsThumbnail) {
-      return
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) {
-        setVisible(true)
-        observer.disconnect()
-      }
-    })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [wantsThumbnail])
-  const Icon = KIND_ICONS[asset.kind]
-  return (
-    <span ref={ref} className="flex shrink-0 items-center justify-center">
-      {wantsThumbnail && visible ? (
-        <AssetThumbnailImage asset={asset} />
-      ) : (
-        <Icon
-          className={cn(
-            'size-3.5 shrink-0',
-            asset.missing ? 'text-muted-foreground' : 'text-[#6E48E5]'
-          )}
-        />
-      )}
-    </span>
-  )
-}
-
-/** Zoomed out, rows stay icons: thumbnails would be unreadable and cost a read each. */
-function AssetRowIconOnly({ asset }: { asset: CollectedAsset }): React.JSX.Element {
-  const Icon = KIND_ICONS[asset.kind]
-  return (
-    <Icon
-      className={cn(
-        'size-3.5 shrink-0',
-        asset.missing ? 'text-muted-foreground' : 'text-[#6E48E5]'
-      )}
-    />
-  )
-}
-
-function AssetRow({
-  asset,
-  selected,
-  iconOnly,
-  onToggle
-}: {
-  asset: CollectedAsset
-  selected: boolean
-  iconOnly: boolean
-  onToggle: (shift: boolean) => void
-}): React.JSX.Element {
-  const setPreviewAsset = useDuduAdeStore((s) => s.setPreviewAsset)
-  return (
-    <div
-      draggable
-      className={cn(
-        'flex cursor-pointer items-center gap-1.5 rounded px-1 py-1 hover:bg-muted/60',
-        selected && 'bg-[#F1EDFF] dark:bg-[#6E48E5]/25',
-        iconOnly && 'justify-center'
-      )}
-      title={asset.missing ? `${DUDU_ADE_COPY.assetMissing}: ${asset.location}` : asset.location}
-      onDragStart={(event) => {
-        event.dataTransfer.setData(ASSET_DRAG_TYPE, asset.id)
-        event.dataTransfer.effectAllowed = 'copyMove'
-      }}
-      onClick={() => setPreviewAsset(asset.id)}
-    >
-      {iconOnly ? null : (
-        <input
-          type="checkbox"
-          className="size-3 shrink-0 accent-[#6E48E5]"
-          checked={selected}
-          aria-label={assetDisplayName(asset)}
-          // onClick, not onChange: only the mouse event knows Shift.
-          onClick={(event) => {
-            event.stopPropagation()
-            onToggle(event.shiftKey)
-          }}
-          onChange={() => undefined}
-        />
-      )}
-      {iconOnly ? (
-        <AssetRowIconOnly asset={asset} />
-      ) : (
-        <>
-          <AssetRowIcon asset={asset} />
-          <span
-            className={cn(
-              'min-w-0 flex-1 truncate text-xs',
-              asset.missing && 'text-muted-foreground line-through'
-            )}
-          >
-            {assetDisplayName(asset)}
-          </span>
-        </>
-      )}
-    </div>
-  )
-}
 
 /** A card's own assets beside it: everything its conversation produced, filed into per-card categories. */
 export const BoardAssetPanel = memo(function BoardAssetPanel({
@@ -166,19 +44,30 @@ export const BoardAssetPanel = memo(function BoardAssetPanel({
   card,
   panel = EMPTY_ASSET_PANEL,
   assets,
-  zoom
+  zoom,
+  source,
+  others,
+  showEmpty
 }: {
   cardKey: string
   card: BoardCardGeometry
   panel?: PanelState
   assets: CollectedAsset[]
   zoom: number
+  /** The window this card shows, which files added by hand are recorded under. */
+  source?: CollectedAssetSource
+  /** The other cards a file can also be shown on. */
+  others: { key: string; name: string }[]
+  /** An empty list is only drawn for the card in use, so it has somewhere to add files. */
+  showEmpty: boolean
 }): React.JSX.Element | null {
   const updateBoard = useDuduAdeStore((s) => s.updateBoard)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [lastId, setLastId] = useState<string | null>(null)
   const [naming, setNaming] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [pasting, setPasting] = useState(false)
+  const [pasteInvalid, setPasteInvalid] = useState(false)
   const update = (change: (current: PanelState) => PanelState): void =>
     updateBoard((board) => ({
       assetPanels: {
@@ -186,7 +75,7 @@ export const BoardAssetPanel = memo(function BoardAssetPanel({
         [cardKey]: change(board.assetPanels[cardKey] ?? EMPTY_ASSET_PANEL)
       }
     }))
-  if (assets.length === 0 && panel.categories.length === 0) {
+  if (assets.length === 0 && panel.categories.length === 0 && !showEmpty) {
     return null
   }
   const height = cardHeight(card)
@@ -234,10 +123,33 @@ export const BoardAssetPanel = memo(function BoardAssetPanel({
     }
     return selected.has(id) ? [...selected] : [id]
   }
+  const owners = new Set([cardKey, ...(panel.sources ?? [])])
+  const addPaths = (paths: readonly string[]): boolean => {
+    if (!source || paths.length === 0) {
+      return false
+    }
+    useDuduAdeStore.getState().addManualAssets(cardKey, source, paths)
+    return true
+  }
+  const pickFiles = (): void => {
+    void window.api.shell
+      .pickAttachments()
+      .then((paths) => {
+        if (paths.length > 0) {
+          setPasteInvalid(!addPaths(paths))
+        }
+      })
+      .catch(() => undefined)
+  }
   const row = (asset: CollectedAsset): React.JSX.Element => (
     <AssetRow
       key={asset.id}
       asset={asset}
+      menu={{
+        key: cardKey,
+        others,
+        collectedHere: owners.has(boardTerminalKey(asset.source))
+      }}
       selected={selected.has(asset.id)}
       iconOnly={iconOnly}
       onToggle={(shift) => {
@@ -269,6 +181,26 @@ export const BoardAssetPanel = memo(function BoardAssetPanel({
         <Button
           variant="ghost"
           size="icon-xs"
+          aria-label={DUDU_ADE_COPY.assetFileAdd}
+          title={DUDU_ADE_COPY.assetFileAdd}
+          disabled={!source}
+          onClick={pickFiles}
+        >
+          <FilePlus />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={DUDU_ADE_COPY.assetPathPaste}
+          title={DUDU_ADE_COPY.assetPathPaste}
+          disabled={!source}
+          onClick={() => setPasting(!pasting)}
+        >
+          <Link2 />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
           aria-label={DUDU_ADE_COPY.assetPanelClose}
           title={DUDU_ADE_COPY.assetPanelClose}
           onClick={() => update((current) => ({ ...current, collapsed: true }))}
@@ -276,6 +208,33 @@ export const BoardAssetPanel = memo(function BoardAssetPanel({
           <PanelLeftClose />
         </Button>
       </div>
+      {pasting || pasteInvalid ? (
+        <div className="flex shrink-0 flex-col gap-1 border-b border-border p-1.5">
+          <input
+            autoFocus
+            className="h-6 min-w-0 rounded border border-border bg-transparent px-1 font-mono text-2xs outline-none aria-invalid:border-destructive"
+            aria-invalid={pasteInvalid}
+            placeholder={DUDU_ADE_COPY.assetPathPaste}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !isImeOwnedKeyboardEvent(event)) {
+                const path = manualAssetPath(event.currentTarget.value, null)
+                const added = path ? addPaths([path]) : false
+                setPasteInvalid(!added)
+                if (added) {
+                  event.currentTarget.value = ''
+                  setPasting(false)
+                }
+              } else if (event.key === 'Escape') {
+                setPasting(false)
+                setPasteInvalid(false)
+              }
+            }}
+          />
+          {pasteInvalid ? (
+            <span className="text-2xs text-destructive">{DUDU_ADE_COPY.assetPathInvalid}</span>
+          ) : null}
+        </div>
+      ) : null}
       {selected.size > 0 && !iconOnly ? (
         <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border p-1.5 text-2xs">
           <span className="text-muted-foreground">

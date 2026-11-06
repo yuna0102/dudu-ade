@@ -40,6 +40,7 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
   geometry,
   zoom,
   status,
+  unread,
   model,
   highlighted,
   onCommitCard,
@@ -54,6 +55,7 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
   geometry: BoardCardGeometry
   zoom: number
   status: WorktreeStatus | undefined
+  unread?: boolean
   model: TerminalAgentModel | undefined
   highlighted: boolean
   onCommitCard: (key: string, geometry: BoardCardGeometry, change: BoardCardChange) => void
@@ -98,6 +100,7 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
           terminal={terminal}
           title={displayTitle}
           status={status}
+          unread={unread}
           model={model}
           onActivate={() => onActivate(terminal.key)}
         />
@@ -119,7 +122,7 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
       badges={
         <div className="flex shrink-0 items-center gap-1">
           <ModelBadge model={model} />
-          <AgentStatusChip status={status} />
+          <AgentStatusChip status={status} unread={unread} />
         </div>
       }
       actions={

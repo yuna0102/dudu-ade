@@ -1,3 +1,4 @@
+import { parseArtifactLink, type AssetMeta } from './asset-meta'
 import { isHexColor } from './board-area-colors'
 import {
   CATEGORY_COLORS,
@@ -37,6 +38,8 @@ export type SeedArea = {
 }
 export type SeedPanel = {
   collapsed?: boolean
+  extra?: string[]
+  hidden?: string[]
   categories: { id: string; name: string; collapsed?: boolean; assetIds: string[] }[]
 }
 /** One window as the desk needs to reopen it. */
@@ -65,6 +68,7 @@ export type RestoreSeed = {
   noteCards: Record<string, BoardCardGeometry>
   assetCards: Record<string, BoardCardGeometry>
   assetPanels: Record<string, SeedPanel>
+  assetMeta?: Record<string, AssetMeta>
   windows: SeedWindow[]
 }
 
@@ -161,11 +165,41 @@ export function parseRestoreSeed(text: string): RestoreSeed | null {
       assetCards[key] = geometry
     }
   }
+  const stringList = (value: unknown): string[] =>
+    list(value).filter((entry): entry is string => typeof entry === 'string')
+  const assetMeta: Record<string, AssetMeta> = {}
+  for (const [id, entry] of Object.entries(isRecord(raw.assetMeta) ? raw.assetMeta : {})) {
+    if (isRecord(entry)) {
+      const name = typeof entry.name === 'string' && entry.name.trim() ? entry.name : undefined
+      const artifactUrl =
+        typeof entry.artifactUrl === 'string' ? parseArtifactLink(entry.artifactUrl) : null
+      const allow = isRecord(entry.formAllow) ? entry.formAllow : null
+      const formAllow =
+        allow && typeof allow.hash === 'string' && Array.isArray(allow.ports)
+          ? {
+              hash: allow.hash,
+              ports: allow.ports.filter(
+                (port): port is number =>
+                  typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535
+              )
+            }
+          : null
+      if (name || artifactUrl || formAllow?.ports.length) {
+        assetMeta[id] = {
+          ...(name ? { name } : {}),
+          ...(artifactUrl ? { artifactUrl } : {}),
+          ...(formAllow?.ports.length ? { formAllow } : {})
+        }
+      }
+    }
+  }
   const assetPanels: Record<string, SeedPanel> = {}
   for (const [name, panel] of Object.entries(isRecord(raw.assetPanels) ? raw.assetPanels : {})) {
     if (isRecord(panel)) {
       assetPanels[name] = {
         ...(panel.collapsed === true ? { collapsed: true } : {}),
+        ...(stringList(panel.extra).length > 0 ? { extra: stringList(panel.extra) } : {}),
+        ...(stringList(panel.hidden).length > 0 ? { hidden: stringList(panel.hidden) } : {}),
         categories: list(panel.categories).flatMap((category) =>
           isRecord(category) && typeof category.name === 'string'
             ? [
@@ -188,6 +222,7 @@ export function parseRestoreSeed(text: string): RestoreSeed | null {
     ...(typeof raw.boardName === 'string' ? { boardName: raw.boardName } : {}),
     ...(typeof raw.autoPush === 'boolean' ? { autoPush: raw.autoPush } : {}),
     assetCards,
+    assetMeta,
     assetPanels,
     windows: list(raw.windows).flatMap((entry) =>
       isRecord(entry) && typeof entry.name === 'string'

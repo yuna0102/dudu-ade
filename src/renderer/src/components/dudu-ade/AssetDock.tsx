@@ -13,13 +13,19 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { CollectedAssetKind } from './asset-path-extraction'
-import { AssetPreview, assetDisplayName, assetKindLabel } from './AssetPreview'
+import { AssetMenu } from './AssetMenu'
+import { AssetName } from './AssetName'
+import { AssetPreview, assetKindLabel } from './AssetPreview'
 import { formatRelativeKo, useNowEveryMinute } from './asset-time-label'
 import { assetCardKey } from './board-layout-state'
 import { boardTerminalKey } from './board-terminal-listing'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
 import { useDuduAdeStore, type CollectedAsset } from './dudu-ade-store'
+import { matchesSources, sourceChips, toggleSource } from './asset-source-filter'
 import { scanTerminalsForAssets } from './use-asset-scanner'
+
+// The picked windows last as long as the app runs; the dock closing and opening does not reset them.
+let sessionSources: ReadonlySet<string> = new Set()
 
 export const ASSET_DRAG_TYPE = 'application/x-dudu-ade-asset'
 const MIN_DOCK_WIDTH = 240
@@ -58,85 +64,87 @@ function DockRow({
   const sourceLabel =
     asset.source.terminalTitle || asset.source.branch || DUDU_ADE_COPY.sourceUnknown
   return (
-    <div
-      className="group flex cursor-pointer gap-2 rounded-md p-1.5 hover:bg-muted/60"
-      draggable
-      onDragStart={(event) => {
-        event.dataTransfer.setData(ASSET_DRAG_TYPE, asset.id)
-        event.dataTransfer.effectAllowed = 'copy'
-      }}
-      onClick={() => setPreviewAsset(asset.id)}
-      title={asset.location}
-    >
-      <div className="relative size-12 shrink-0 overflow-hidden rounded border border-border">
-        <AssetPreview asset={asset} className="h-full w-full" />
-        {isNew ? (
-          <span
-            className="absolute top-0.5 right-0.5 size-2 rounded-full bg-primary"
-            aria-label={DUDU_ADE_COPY.newBadge}
-          />
-        ) : null}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex min-w-0 items-center gap-1">
-          <span className="truncate text-xs font-medium">{assetDisplayName(asset)}</span>
+    <AssetMenu asset={asset}>
+      <div
+        className="group flex cursor-pointer gap-2 rounded-md p-1.5 hover:bg-muted/60"
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData(ASSET_DRAG_TYPE, asset.id)
+          event.dataTransfer.effectAllowed = 'copy'
+        }}
+        onClick={() => setPreviewAsset(asset.id)}
+        title={asset.location}
+      >
+        <div className="relative size-12 shrink-0 overflow-hidden rounded border border-border">
+          <AssetPreview asset={asset} className="h-full w-full" />
           {isNew ? (
-            <span className="shrink-0 rounded bg-primary px-1 text-3xs text-primary-foreground">
-              {DUDU_ADE_COPY.newBadge}
-            </span>
+            <span
+              className="absolute top-0.5 right-0.5 size-2 rounded-full bg-primary"
+              aria-label={DUDU_ADE_COPY.newBadge}
+            />
           ) : null}
         </div>
-        <div className="flex min-w-0 items-center gap-1 text-3xs text-muted-foreground">
-          <span className="shrink-0 rounded-full bg-muted px-1.5">
-            {assetKindLabel(asset.kind)}
-          </span>
-          <span className="shrink-0">{formatRelativeKo(asset.firstSeenAt, now)}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-1">
+            <AssetName asset={asset} className="text-xs font-medium" />
+            {isNew ? (
+              <span className="shrink-0 rounded bg-primary px-1 text-3xs text-primary-foreground">
+                {DUDU_ADE_COPY.newBadge}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex min-w-0 items-center gap-1 text-3xs text-muted-foreground">
+            <span className="shrink-0 rounded-full bg-muted px-1.5">
+              {assetKindLabel(asset.kind)}
+            </span>
+            <span className="shrink-0">{formatRelativeKo(asset.firstSeenAt, now)}</span>
+          </div>
+          <button
+            type="button"
+            className="flex min-w-0 items-center gap-1 text-left text-3xs text-muted-foreground hover:text-foreground"
+            title={DUDU_ADE_COPY.goToSource}
+            onClick={(event) => {
+              event.stopPropagation()
+              focusCard(assetSourceTerminalKey(asset))
+            }}
+          >
+            <SquareTerminal className="size-3 shrink-0" />
+            <span className="truncate">{sourceLabel}</span>
+          </button>
         </div>
-        <button
-          type="button"
-          className="flex min-w-0 items-center gap-1 text-left text-3xs text-muted-foreground hover:text-foreground"
-          title={DUDU_ADE_COPY.goToSource}
-          onClick={(event) => {
-            event.stopPropagation()
-            focusCard(assetSourceTerminalKey(asset))
-          }}
+        <div
+          className={cn(
+            'flex shrink-0 flex-col items-center',
+            !pinned && 'opacity-0 group-hover:opacity-100'
+          )}
         >
-          <SquareTerminal className="size-3 shrink-0" />
-          <span className="truncate">{sourceLabel}</span>
-        </button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={pinned ? DUDU_ADE_COPY.unpin : DUDU_ADE_COPY.pin}
+            title={pinned ? DUDU_ADE_COPY.unpin : DUDU_ADE_COPY.pin}
+            onClick={(event) => {
+              event.stopPropagation()
+              togglePinAsset(asset.id)
+            }}
+          >
+            {pinned ? <PinOff /> : <Pin />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={onBoard ? DUDU_ADE_COPY.onBoard : DUDU_ADE_COPY.addToBoard}
+            title={onBoard ? DUDU_ADE_COPY.onBoard : DUDU_ADE_COPY.addToBoard}
+            onClick={(event) => {
+              event.stopPropagation()
+              addAssetCard(asset.id)
+            }}
+          >
+            <LayoutDashboard className={cn(onBoard && 'text-foreground')} />
+          </Button>
+        </div>
       </div>
-      <div
-        className={cn(
-          'flex shrink-0 flex-col items-center',
-          !pinned && 'opacity-0 group-hover:opacity-100'
-        )}
-      >
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={pinned ? DUDU_ADE_COPY.unpin : DUDU_ADE_COPY.pin}
-          title={pinned ? DUDU_ADE_COPY.unpin : DUDU_ADE_COPY.pin}
-          onClick={(event) => {
-            event.stopPropagation()
-            togglePinAsset(asset.id)
-          }}
-        >
-          {pinned ? <PinOff /> : <Pin />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={onBoard ? DUDU_ADE_COPY.onBoard : DUDU_ADE_COPY.addToBoard}
-          title={onBoard ? DUDU_ADE_COPY.onBoard : DUDU_ADE_COPY.addToBoard}
-          onClick={(event) => {
-            event.stopPropagation()
-            addAssetCard(asset.id)
-          }}
-        >
-          <LayoutDashboard className={cn(onBoard && 'text-foreground')} />
-        </Button>
-      </div>
-    </div>
+    </AssetMenu>
   )
 }
 
@@ -146,6 +154,10 @@ export function AssetDock(): React.JSX.Element {
   const dock = useDuduAdeStore((s) => s.dock)
   const setDock = useDuduAdeStore((s) => s.setDock)
   const cards = useDuduAdeStore((s) => s.board.cards)
+  const panels = useDuduAdeStore((s) => s.board.assetPanels)
+  const names = useDuduAdeStore((s) => s.board.names)
+  const [sources, setSources] = useState<ReadonlySet<string>>(() => sessionSources)
+  const chips = useMemo(() => sourceChips(assets, panels, names), [assets, panels, names])
   const [filter, setFilter] = useState<CollectedAssetKind | 'all'>('all')
   const [query, setQuery] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -157,6 +169,7 @@ export function AssetDock(): React.JSX.Element {
     const pinned = new Set(dock.pinnedIds)
     return assets
       .filter((asset) => filter === 'all' || asset.kind === filter)
+      .filter((asset) => matchesSources(asset, panels, sources))
       .filter(
         (asset) =>
           !needle ||
@@ -164,7 +177,7 @@ export function AssetDock(): React.JSX.Element {
           (asset.source.terminalTitle ?? '').toLowerCase().includes(needle)
       )
       .sort((a, b) => Number(pinned.has(b.id)) - Number(pinned.has(a.id)))
-  }, [assets, filter, query, dock.pinnedIds])
+  }, [assets, filter, query, dock.pinnedIds, panels, sources])
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>): void => {
     event.preventDefault()
@@ -288,6 +301,29 @@ export function AssetDock(): React.JSX.Element {
             )
           })}
         </div>
+        {chips.length > 1 ? (
+          <div className="flex flex-wrap gap-1" aria-label={DUDU_ADE_COPY.filterSources}>
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                aria-pressed={sources.has(chip.key)}
+                className={cn(
+                  'rounded-full px-2 py-px text-3xs',
+                  sources.has(chip.key)
+                    ? 'bg-[#6E48E5] text-white'
+                    : 'bg-[#F1EDFF] text-[#6E48E5] hover:bg-[#E6DEFF] dark:bg-[#6E48E5]/20 dark:text-[#B9A6FF]'
+                )}
+                onClick={() => {
+                  sessionSources = toggleSource(sources, chip.key)
+                  setSources(sessionSources)
+                }}
+              >
+                {`${chip.name} ${chip.count}`}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek p-1.5">
         {visible.length === 0 ? (

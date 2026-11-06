@@ -178,6 +178,7 @@ export function useBoardViewModel({
                 key,
                 title: cardDisplayTitle(terminal, board.names),
                 status: meta.get(key)?.status,
+                unread: meta.get(key)?.unread,
                 model: terminalModels[paneKeyOf(terminal)]
               }
             ]

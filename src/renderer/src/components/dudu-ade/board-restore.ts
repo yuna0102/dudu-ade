@@ -197,6 +197,8 @@ export function applyRestore(
     if (panel && (force || !assetPanels[key]?.categories.length)) {
       assetPanels[key] = {
         ...assetPanels[key],
+        ...(panel.extra ? { extra: panel.extra } : {}),
+        ...(panel.hidden ? { hidden: panel.hidden } : {}),
         ...(panel.collapsed === undefined ? {} : { collapsed: panel.collapsed }),
         categories: panel.categories
       }
@@ -260,6 +262,15 @@ export function applyRestore(
     progress.viewport = true
     changed = true
   }
+  // What the user said about an asset (its shown name, its artifact page) comes back once; what the board already says wins.
+  let assetMeta = board.assetMeta
+  if (!progress.assetMeta || force) {
+    assetMeta = force
+      ? { ...board.assetMeta, ...seed.assetMeta }
+      : { ...seed.assetMeta, ...board.assetMeta }
+    progress.assetMeta = true
+    changed = true
+  }
   const kept = changed ? withoutBlankAreas(seed, categories, categoryOf, cards, live) : categories
   return changed
     ? {
@@ -272,6 +283,7 @@ export function applyRestore(
         viewport,
         hiddenKeys,
         assetPanels,
+        ...(assetMeta && Object.keys(assetMeta).length > 0 ? { assetMeta } : {}),
         ...(seed.autoPush === undefined ? {} : { autoPush: seed.autoPush }),
         ...(seed.boardName ? { name: seed.boardName } : {}),
         // A first-open grid pass must not lay out over places that were just restored.

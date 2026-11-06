@@ -14,7 +14,10 @@ import {
   type BoardLayout,
   type BoardWorkspaces
 } from './board-layout-state'
+import { assetKindForPath } from '../../../../shared/dudu-ade-asset-kinds'
+import { withAssetMeta } from './asset-meta'
 import { joinCutAssetLinks } from './board-artifact-repair'
+import { EMPTY_ASSET_PANEL, addPanelAssets, removePanelAsset } from './board-asset-panels'
 import { rekeyBoardCard } from './board-links'
 import { BOARDS_STORAGE_KEY, loadBoardWorkspaces } from './board-workspaces-storage'
 import { readPersistedJson, writePersistedJsonSoon } from './dudu-ade-persistence'
@@ -108,7 +111,7 @@ function withoutCardEverywhere(
 
 const initialWorkspaces = loadBoardWorkspaces()
 
-export const useDuduAdeStore = create<DuduAdeState>()((set) => ({
+export const useDuduAdeStore = create<DuduAdeState>()((set, get) => ({
   panel: null,
   workspaces: initialWorkspaces,
   board: activeBoard(initialWorkspaces),
@@ -373,6 +376,64 @@ export const useDuduAdeStore = create<DuduAdeState>()((set) => ({
       return { dock }
     }),
   setPreviewAsset: (assetId) => set({ previewAssetId: assetId }),
+  renamingAssetId: null,
+  linkingAssetId: null,
+  formAllowingAssetId: null,
+  pageResets: {},
+  resetPage: (path) =>
+    set((state) => ({
+      pageResets: { ...state.pageResets, [path]: (state.pageResets[path] ?? 0) + 1 }
+    })),
+  startFormAllow: (assetId) => set({ formAllowingAssetId: assetId }),
+  startLinkAsset: (assetId) => set({ linkingAssetId: assetId }),
+  startRenameAsset: (assetId) => set({ renamingAssetId: assetId }),
+  setAssetMeta: (assetId, patch) =>
+    set((state) =>
+      withActiveBoard(state, (board) => ({
+        assetMeta: withAssetMeta(board.assetMeta, assetId, patch)
+      }))
+    ),
+  addManualAssets: (cardKey, source, paths) => {
+    const found = paths.flatMap((location) => {
+      const kind = assetKindForPath(location)
+      return kind ? [{ id: collectedAssetId(kind, location), kind, location, source }] : []
+    })
+    if (found.length === 0) {
+      return
+    }
+    get().recordAssets(found, Date.now())
+    get().updateBoard((board) => ({
+      assetPanels: {
+        ...board.assetPanels,
+        [cardKey]: addPanelAssets(
+          board.assetPanels[cardKey] ?? EMPTY_ASSET_PANEL,
+          found.map((asset) => asset.id)
+        )
+      }
+    }))
+  },
+  shareAsset: (assetId, cardKey) =>
+    set((state) =>
+      withActiveBoard(state, (board) => ({
+        assetPanels: {
+          ...board.assetPanels,
+          [cardKey]: addPanelAssets(board.assetPanels[cardKey] ?? EMPTY_ASSET_PANEL, [assetId])
+        }
+      }))
+    ),
+  removeAssetFromCard: (assetId, cardKey, collectedHere) =>
+    set((state) =>
+      withActiveBoard(state, (board) => ({
+        assetPanels: {
+          ...board.assetPanels,
+          [cardKey]: removePanelAsset(
+            board.assetPanels[cardKey] ?? EMPTY_ASSET_PANEL,
+            assetId,
+            collectedHere
+          )
+        }
+      }))
+    ),
   setTerminalModels: (models) => set({ terminalModels: models })
 }))
 

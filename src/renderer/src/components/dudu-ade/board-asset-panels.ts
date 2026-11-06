@@ -14,6 +14,10 @@ export type BoardAssetPanel = {
   collapsed?: boolean
   /** Older card keys of this conversation; assets remember the terminal that printed them. */
   sources?: string[]
+  /** Assets shown here whoever wrote them: files added by hand, and ones another card shares. */
+  extra?: string[]
+  /** Assets collected for this card that it no longer lists. */
+  hidden?: string[]
   categories: BoardAssetCategory[]
 }
 
@@ -38,8 +42,15 @@ export function panelAssets(
   cards: Record<string, BoardCardGeometry>
 ): CollectedAsset[] {
   const owners = new Set([cardKey, ...(panel?.sources ?? [])])
+  const extra = new Set(panel?.extra)
+  const hidden = new Set(panel?.hidden)
   return assets
-    .filter((asset) => owners.has(boardTerminalKey(asset.source)) && !cards[assetCardKey(asset.id)])
+    .filter(
+      (asset) =>
+        ((owners.has(boardTerminalKey(asset.source)) && !hidden.has(asset.id)) ||
+          extra.has(asset.id)) &&
+        !cards[assetCardKey(asset.id)]
+    )
     .sort((a, b) => b.firstSeenAt - a.firstSeenAt)
 }
 
@@ -148,4 +159,51 @@ export function moveAssetCategory(
     return panel
   }
   return { ...panel, categories: [...without.slice(0, index), moving, ...without.slice(index)] }
+}
+
+/** The cards whose panel lists this asset: the one that wrote it (or a card standing for the same conversation) and every card it was added or shared to. */
+export function assetOwnerKeys(
+  asset: CollectedAsset,
+  panels: Readonly<Record<string, BoardAssetPanel>>
+): string[] {
+  const source = boardTerminalKey(asset.source)
+  const keys = new Set([source])
+  for (const [key, panel] of Object.entries(panels)) {
+    if (panel.extra?.includes(asset.id) || panel.sources?.includes(source)) {
+      keys.add(key)
+    }
+  }
+  return [...keys].filter((key) => {
+    const panel = panels[key]
+    return !panel?.hidden?.includes(asset.id) || panel.extra?.includes(asset.id)
+  })
+}
+
+/** Adds assets to a card's list (a file picked by hand, or shared from another card); nothing it hid stays hidden. */
+export function addPanelAssets(panel: BoardAssetPanel, ids: readonly string[]): BoardAssetPanel {
+  const extra = [...new Set([...(panel.extra ?? []), ...ids])]
+  const hidden = (panel.hidden ?? []).filter((id) => !ids.includes(id))
+  return { ...panel, extra, ...(hidden.length > 0 ? { hidden } : { hidden: undefined }) }
+}
+
+/**
+ * Takes an asset off a card's list. One added by hand is dropped for good; one the collector found stays
+ * known but hidden, so the next pass does not bring it back.
+ */
+export function removePanelAsset(
+  panel: BoardAssetPanel,
+  id: string,
+  collectedHere: boolean
+): BoardAssetPanel {
+  const extra = (panel.extra ?? []).filter((entry) => entry !== id)
+  const hidden = collectedHere ? [...new Set([...(panel.hidden ?? []), id])] : panel.hidden
+  return {
+    ...panel,
+    extra: extra.length > 0 ? extra : undefined,
+    hidden: hidden && hidden.length > 0 ? hidden : undefined,
+    categories: panel.categories.map((category) => ({
+      ...category,
+      assetIds: category.assetIds.filter((entry) => entry !== id)
+    }))
+  }
 }

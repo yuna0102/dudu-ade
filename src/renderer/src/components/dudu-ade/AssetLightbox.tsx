@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { Copy, ExternalLink, LayoutDashboard, Link2, SquareTerminal, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { AssetPreview, assetDisplayName, assetKindLabel } from './AssetPreview'
+import { AssetName } from './AssetName'
+import { AssetPreview, assetKindLabel } from './AssetPreview'
 import { copyAssetLocation, openCollectedAsset } from './asset-actions'
 import { assetSourceTerminalKey } from './AssetDock'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
@@ -49,8 +50,8 @@ export function AssetLightbox(): React.JSX.Element | null {
           <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-3xs text-muted-foreground">
             {assetKindLabel(asset.kind)}
           </span>
-          <span className="truncate text-sm font-medium" title={asset.location}>
-            {assetDisplayName(asset)}
+          <span className="flex min-w-0 text-sm font-medium" title={asset.location}>
+            <AssetName asset={asset} />
           </span>
           <button
             type="button"

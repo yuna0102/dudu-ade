@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { CollectedAssetKind } from './asset-path-extraction'
-import { AssetPreview, assetDisplayName, assetKindLabel } from './AssetPreview'
+import { useAssetLabel } from './AssetName'
+import { AssetPreview, assetKindLabel } from './AssetPreview'
 import { copyAssetLocation, openCollectedAsset, revealAssetSourceTerminal } from './asset-actions'
 import { formatClockKo, formatRelativeKo, useNowEveryMinute } from './asset-time-label'
 import { assetCardKey } from './board-layout-state'
@@ -64,13 +65,14 @@ function AssetTile({
   const sourceLabel =
     asset.source.terminalTitle || asset.source.branch || DUDU_ADE_COPY.sourceUnknown
   const workspaceLabel = asset.source.worktreePath.split('/').pop() ?? ''
+  const label = useAssetLabel(asset)
   return (
     <div className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card">
       <button
         type="button"
         className="block h-40 w-full cursor-pointer border-b border-border"
         onClick={() => openCollectedAsset(asset)}
-        aria-label={`${DUDU_ADE_COPY.open}: ${assetDisplayName(asset)}`}
+        aria-label={`${DUDU_ADE_COPY.open}: ${label}`}
       >
         <AssetPreview asset={asset} className="h-full w-full" />
       </button>
@@ -80,7 +82,7 @@ function AssetTile({
             {assetKindLabel(asset.kind)}
           </span>
           <span className="truncate text-xs font-medium" title={asset.location}>
-            {assetDisplayName(asset)}
+            {label}
           </span>
         </div>
         <div

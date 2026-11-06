@@ -120,15 +120,22 @@ export function buildLayoutSeed(
     notes: Object.fromEntries(noteKeys.map((key): [string, BoardNote] => [key, board.notes[key]])),
     noteCards: Object.fromEntries(noteKeys.map((key) => [key, plain(board.cards[key])])),
     assetCards: Object.fromEntries(assetKeys.map((key) => [key, plain(board.cards[key])])),
+    assetMeta: board.assetMeta ?? {},
     assetPanels: Object.fromEntries(
       named.flatMap((card) => {
         const panel = board.assetPanels[card.key]
-        return panel && (panel.collapsed || panel.categories.length > 0)
+        return panel &&
+          (panel.collapsed ||
+            panel.categories.length > 0 ||
+            panel.extra?.length ||
+            panel.hidden?.length)
           ? [
               [
                 card.name,
                 {
                   ...(panel.collapsed ? { collapsed: true } : {}),
+                  ...(panel.extra?.length ? { extra: panel.extra } : {}),
+                  ...(panel.hidden?.length ? { hidden: panel.hidden } : {}),
                   categories: panel.categories
                 }
               ]

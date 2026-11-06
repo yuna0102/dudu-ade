@@ -75,8 +75,30 @@ export const shellApi = {
   duduAdeTranscriptAssets: (request: TranscriptAssetRequest): Promise<TranscriptAssets> =>
     ipcRenderer.invoke('duduAde:transcriptAssets', request),
 
-  duduAdeArtifactPageUrl: (path: string): Promise<string | null> =>
-    ipcRenderer.invoke('duduAde:artifactPageUrl', path),
+  duduAdeArtifactPageUrl: (
+    path: string,
+    formAllow?: { hash: string; ports: number[] }
+  ): Promise<string | null> => ipcRenderer.invoke('duduAde:artifactPageUrl', path, formAllow),
+
+  onDuduAdeFormSaved: (
+    listener: (event: { page: string; verdict: 'saved' | 'failed' }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: unknown,
+      payload: { page: string; verdict: 'saved' | 'failed' }
+    ): void => listener(payload)
+    ipcRenderer.on('duduAde:formSaved', handler)
+    return () => ipcRenderer.removeListener('duduAde:formSaved', handler)
+  },
+
+  duduAdeArtifactFormInfo: (
+    path: string,
+    formAllow?: { hash: string; ports: number[] }
+  ): Promise<{ hash: string; ports: number[]; allowed: boolean } | null> =>
+    ipcRenderer.invoke('duduAde:artifactFormInfo', path, formAllow),
+
+  duduAdeArtifactTwin: (path: string): Promise<{ artifactUrl: string; name: string } | null> =>
+    ipcRenderer.invoke('duduAde:artifactTwin', path),
 
   duduAdeReadOutIndex: (): Promise<{ outRoot: string; text: string }> =>
     ipcRenderer.invoke('duduAde:readOutIndex'),

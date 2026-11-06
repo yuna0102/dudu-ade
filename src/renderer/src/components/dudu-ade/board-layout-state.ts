@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- Why: board shape and its geometry helpers are read together. */
 import type { BoardAssetPanel } from './board-asset-panels'
+import type { AssetMeta } from './asset-meta'
 
 export type BoardViewport = { x: number; y: number; zoom: number }
 
@@ -100,11 +101,14 @@ export type BoardLayout = {
     viewport?: boolean
     areas?: boolean
     notes?: boolean
+    assetMeta?: boolean
     cards?: string[]
     links?: string[]
   }
   /** Per card: the asset panel's collapsed state and categories. */
   assetPanels: Record<string, BoardAssetPanel>
+  /** Per asset id: the name shown for it and the artifact page it is a copy of. The file itself is never renamed. */
+  assetMeta?: Record<string, AssetMeta>
   /** Lay everything out by category once the first terminals arrive. */
   arrangePending?: boolean
 }

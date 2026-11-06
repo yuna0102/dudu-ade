@@ -100,3 +100,15 @@ export function parseOutIndex(text: string): OutIndexEntry[] {
     .filter((entry) => entry.artifactUrl || entry.localHtml || entry.localMarkdown)
     .sort((a, b) => Number(b.date) - Number(a.date))
 }
+
+/** The artifact page published from a local page, by the table's own pairing of a row with its local file. */
+export function artifactUrlForLocalPage(
+  path: string,
+  outRoot: string,
+  entries: readonly OutIndexEntry[]
+): string | null {
+  return (
+    entries.find((entry) => entry.artifactUrl && localPageCandidates(entry, outRoot).includes(path))
+      ?.artifactUrl ?? null
+  )
+}
