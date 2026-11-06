@@ -10,7 +10,7 @@ import {
 import { RetainedPaneHost } from '../tab-group/RetainedPaneHost'
 import NativeChatView from './NativeChatView'
 import { isStructuredTab } from '../../../../shared/agent-session/view/structured-agent-session-tab'
-import { useBoardChatOwner } from '../dudu-ade/board-chat-owner'
+import { isHeldByBoard, useBoardChatOwner } from '../dudu-ade/board-chat-owner'
 import { useDuduAdeStore } from '../dudu-ade/dudu-ade-store'
 
 type StructuredAgentSessionTab = Tab & {
@@ -40,7 +40,7 @@ const StructuredAgentSessionOverlaySlot = memo(function StructuredAgentSessionOv
   const owner = useAppStore((state) => structuredAgentSessionOwnerForTab(state, tab))
   const target = useMemo(() => structuredAgentSessionTargetForHost(owner), [owner])
   const themeBackgroundActive = useThemeBackgroundStore((state) => state.active)
-  const heldByBoard = useBoardChatOwner((state) => state.tabId === tab.id)
+  const heldByBoard = useBoardChatOwner((state) => isHeldByBoard(state, tab.id))
   if (!target) {
     return null
   }

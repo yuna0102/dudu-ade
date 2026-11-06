@@ -11,6 +11,8 @@ export const DUDU_ADE_COPY = {
   linkLabelPlaceholder: '연결 이름 (선택)',
   linkDelete: '연결 삭제',
   resizeCard: '크기 조절',
+  artifactPrivate: '이 아티팩트는 비공개라 로그인이 필요합니다',
+  artifactLoginHere: '여기서 로그인',
   saveLayout: '지금 배치 저장',
   restoreLayout: '저장한 배치로 되돌리기',
   layoutSaved: '배치를 저장했습니다',
@@ -101,8 +103,6 @@ export const DUDU_ADE_COPY = {
   chatKeptWhileWorking:
     '채팅이 아직 작업 중이라 채팅 탭을 남겨 두었습니다. 끝난 뒤 직접 닫아 주세요',
   chatUnavailable: '이 채팅을 불러오지 못했습니다. 작업 화면에서 열어 상태를 확인해 주세요',
-  chatEmpty: '아직 대화가 없습니다',
-  chatImageOnly: '이미지',
   moreAssets: '산출물 더 보기',
   zoomIn: '확대',
   zoomOut: '축소',

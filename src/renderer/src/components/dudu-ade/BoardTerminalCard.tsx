@@ -10,8 +10,7 @@ import type { BoardTerminal } from './board-terminal-listing'
 import { AgentStatusChip, ModelBadge } from './BoardAgentBadges'
 import { BoardCardFrame } from './BoardCardFrame'
 import { BoardCardLabel } from './BoardCardLabel'
-import { BoardChatLive } from './BoardChatLive'
-import { BoardChatPreview } from './BoardChatPreview'
+import { BoardChatLive, CHAT_RAIL_MIN_WIDTH } from './BoardChatLive'
 import type { BoardCardChange } from './use-board-card-drag'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
 import { useDuduAdeStore } from './dudu-ade-store'
@@ -21,8 +20,18 @@ import { useBoardCardInputFocus, useUnscaledTerminalMouse } from './use-unscaled
 import { useAppStore } from '@/store'
 import { normalizeDesktopTerminalScrollbackRows } from '../../../../shared/terminal-scrollback-policy'
 
+/** A window's title without the status mark an agent puts in front of it. */
 export function boardTerminalTitle(terminal: BoardTerminal): string {
-  return terminal.title || terminal.branch || terminal.handle
+  const title = terminal.title?.replace(/^[^\p{L}\p{N}]+/u, '')
+  return title || terminal.branch || terminal.handle
+}
+
+/** The role name when the window has one; an agent can rewrite its title at any time. */
+export function cardDisplayTitle(
+  terminal: BoardTerminal,
+  names: Readonly<Record<string, string>> | undefined
+): string {
+  return names?.[terminal.key] ?? boardTerminalTitle(terminal)
 }
 
 export const BoardTerminalCard = memo(function BoardTerminalCard({
@@ -36,7 +45,9 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
   onCommitCard,
   onStartLink,
   focused,
-  onActivate
+  onActivate,
+  displayTitle,
+  onScreen
 }: {
   terminal: BoardTerminal
   workspaceName: string
@@ -49,6 +60,9 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
   onStartLink?: (key: string, event: React.PointerEvent) => void
   focused: boolean
   onActivate: (key: string) => void
+  displayTitle: string
+  /** Near enough to read: a chat off screen or too small keeps its view but stops its heavier updates. */
+  onScreen: boolean
 }): React.JSX.Element {
   const removeCard = useDuduAdeStore((s) => s.removeCard)
   const setCards = useDuduAdeStore((s) => s.setCards)
@@ -82,7 +96,7 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
       floatingLabel={
         <BoardCardLabel
           terminal={terminal}
-          title={boardTerminalTitle(terminal)}
+          title={displayTitle}
           status={status}
           model={model}
           onActivate={() => onActivate(terminal.key)}
@@ -100,7 +114,7 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
           <SquareTerminal className="size-3.5 shrink-0 text-muted-foreground" />
         )
       }
-      title={boardTerminalTitle(terminal)}
+      title={displayTitle}
       subtitle={workspaceName}
       badges={
         <div className="flex shrink-0 items-center gap-1">
@@ -137,15 +151,14 @@ export const BoardTerminalCard = memo(function BoardTerminalCard({
       {/* Always mounted, so the mouse fix attaches even when the pane connects later. */}
       <div ref={bodyRef} className="relative h-full">
         {terminal.chat ? (
-          focused ? (
-            <BoardChatLive
-              worktreeId={terminal.worktreeId}
-              tabId={terminal.tabId}
-              sessionId={terminal.chat.sessionId}
-            />
-          ) : (
-            <BoardChatPreview sessionId={terminal.chat.sessionId} />
-          )
+          <BoardChatLive
+            worktreeId={terminal.worktreeId}
+            tabId={terminal.tabId}
+            sessionId={terminal.chat.sessionId}
+            focused={focused}
+            onScreen={onScreen}
+            wide={geometry.w >= CHAT_RAIL_MIN_WIDTH}
+          />
         ) : live && terminal.ptyId ? (
           // Scaled until the user resizes the card; then the PTY follows the card on release.
           // Remounting on a switch back drops the size claim, which hands the PTY back to the real pane.

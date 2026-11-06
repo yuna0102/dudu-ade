@@ -31,7 +31,8 @@ const row = (date: string, name: string, url: string | null, localHtml: string |
   section: '앱',
   artifactUrl: url,
   localHtml,
-  localMarkdown: null
+  localMarkdown: null,
+  localFolder: null
 })
 const now = new Date(2026, 10, 5)
 

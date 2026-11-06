@@ -9,6 +9,26 @@ const MAX_TERMINAL_FONT = 32
 
 export const DEFAULT_TERMINAL_FONT = 14
 
+/** Below this zoom a chat cannot be read, so it stays mounted without its heavier updates. */
+export const CHAT_READABLE_ZOOM = 0.2
+
+export function chatStaysLive(
+  card: BoardRect,
+  view: BoardRect,
+  zoom: number,
+  focused: boolean
+): boolean {
+  if (focused) {
+    return true
+  }
+  const onScreen =
+    card.x < view.x + view.w &&
+    view.x < card.x + card.w &&
+    card.y < view.y + view.h &&
+    view.y < card.y + card.h
+  return onScreen && zoom >= CHAT_READABLE_ZOOM
+}
+
 export type BoardWheelRoute = 'zoom' | 'pan' | 'card'
 
 /**

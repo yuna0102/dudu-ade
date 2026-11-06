@@ -14,6 +14,7 @@ import {
   type BoardLayout,
   type BoardWorkspaces
 } from './board-layout-state'
+import { joinCutAssetLinks } from './board-artifact-repair'
 import { rekeyBoardCard } from './board-links'
 import { BOARDS_STORAGE_KEY, loadBoardWorkspaces } from './board-workspaces-storage'
 import { readPersistedJson, writePersistedJsonSoon } from './dudu-ade-persistence'
@@ -63,6 +64,26 @@ function withActiveBoard(
     boards: state.workspaces.boards.map((entry) => (entry.id === board.id ? board : entry))
   })
   return { workspaces, board }
+}
+
+/** An asset whose id changed keeps its card on every board. */
+function movedAssetCards(
+  state: DuduAdeState,
+  moved: ReadonlyMap<string, string>
+): Partial<Pick<DuduAdeState, 'workspaces' | 'board'>> {
+  if (moved.size === 0) {
+    return {}
+  }
+  const workspaces = persistWorkspaces({
+    ...state.workspaces,
+    boards: state.workspaces.boards.map((board) =>
+      [...moved].reduce(
+        (next, [from, to]) => rekeyBoardCard(next, assetCardKey(from), assetCardKey(to)),
+        board
+      )
+    )
+  })
+  return { workspaces, board: activeBoard(workspaces) }
 }
 
 /** Drops a card key from every board (forgotten assets). */
@@ -280,10 +301,11 @@ export const useDuduAdeStore = create<DuduAdeState>()((set) => ({
   focusCard: (key) => set({ focusRequest: { key, at: Date.now() }, previewAssetId: null }),
   recordAssets: (found, now) =>
     set((state) => {
-      if (found.length === 0) {
+      const joined = joinCutAssetLinks(state.assets, collectedAssetId)
+      if (found.length === 0 && joined.moved.size === 0) {
         return {}
       }
-      const byId = new Map(state.assets.map((asset) => [asset.id, asset]))
+      const byId = new Map(joined.assets.map((asset) => [asset.id, asset]))
       for (const { seenAt = now, ...asset } of found) {
         const existing = byId.get(asset.id)
         // The earliest producer stays the source, so the window that wrote a file beats one that later mentioned it.
@@ -296,10 +318,19 @@ export const useDuduAdeStore = create<DuduAdeState>()((set) => ({
               : { ...existing, lastSeenAt: Math.max(existing.lastSeenAt, seenAt) }
         )
       }
-      const assets = [...byId.values()]
-        .sort((a, b) => b.firstSeenAt - a.firstSeenAt)
-        .slice(0, MAX_ASSETS)
-      return { assets: persistAssets(assets) }
+      const again = joinCutAssetLinks([...byId.values()], collectedAssetId)
+      const assets = again.assets.sort((a, b) => b.firstSeenAt - a.firstSeenAt).slice(0, MAX_ASSETS)
+      return {
+        assets: persistAssets(assets),
+        ...movedAssetCards(state, new Map([...joined.moved, ...again.moved]))
+      }
+    }),
+  repairAssetLinks: (fullUrls) =>
+    set((state) => {
+      const joined = joinCutAssetLinks(state.assets, collectedAssetId, fullUrls)
+      return joined.moved.size === 0
+        ? {}
+        : { assets: persistAssets(joined.assets), ...movedAssetCards(state, joined.moved) }
     }),
   setMissingAssets: (missing, checked) =>
     set((state) => {

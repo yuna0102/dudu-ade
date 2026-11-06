@@ -109,7 +109,10 @@ export function useBoardCardInputFocus(
     if (!body) {
       return
     }
-    const input = (): HTMLElement | null => body.querySelector('.xterm-helper-textarea')
+    const input = (): HTMLElement | null =>
+      body.querySelector(
+        '.xterm-helper-textarea, [data-native-chat-root] [contenteditable="true"], [data-native-chat-root] textarea'
+      )
     if (!focused) {
       if (document.activeElement instanceof HTMLElement && body.contains(document.activeElement)) {
         document.activeElement.blur()

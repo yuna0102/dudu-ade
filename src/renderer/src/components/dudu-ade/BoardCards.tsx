@@ -4,10 +4,11 @@ import { BoardAssetCard } from './BoardAssetCard'
 import { BoardAssetPanel } from './BoardAssetPanel'
 import { panelAssets } from './board-asset-panels'
 import { paneKeyOf } from './board-agent-labels'
-import type { BoardCardGeometry, BoardLayout } from './board-layout-state'
+import type { BoardCardGeometry, BoardLayout, BoardRect } from './board-layout-state'
 import type { BoardTerminal } from './board-terminal-listing'
 import { BoardNoteCard } from './BoardNoteCard'
-import { BoardTerminalCard } from './BoardTerminalCard'
+import { chatStaysLive } from './board-terminal-focus'
+import { BoardTerminalCard, cardDisplayTitle } from './BoardTerminalCard'
 import type { CollectedAsset } from './dudu-ade-store-types'
 import type { BoardCardChange } from './use-board-card-drag'
 import type { BoardTerminalMeta } from './use-board-terminals'
@@ -29,7 +30,8 @@ export function BoardCards({
   onCommitCard,
   onStartLink,
   focusedKey,
-  onActivate
+  onActivate,
+  viewportRect
 }: {
   liveKeys: string[]
   collapsedKeys: ReadonlySet<string>
@@ -47,6 +49,7 @@ export function BoardCards({
   onStartLink: (key: string, event: React.PointerEvent) => void
   focusedKey: string | null
   onActivate: (key: string) => void
+  viewportRect: BoardRect
 }): React.JSX.Element {
   const panels = useMemo(
     () =>
@@ -82,6 +85,8 @@ export function BoardCards({
               onStartLink={onStartLink}
               focused={focusedKey === key}
               onActivate={onActivate}
+              displayTitle={cardDisplayTitle(terminal, board.names)}
+              onScreen={chatStaysLive(geometry, viewportRect, zoom, focusedKey === key)}
             />
           )
         }

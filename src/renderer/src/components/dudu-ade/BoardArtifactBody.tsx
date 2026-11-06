@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ArtifactPreview } from '@/components/artifacts/ArtifactPreview'
+import { BoardArtifactWebview } from './BoardArtifactWebview'
 import { Button } from '@/components/ui/button'
 import type { BoardNote } from './board-layout-state'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
@@ -49,9 +49,9 @@ export function BoardArtifactBody({ note }: { note: BoardNote }): React.JSX.Elem
           src={pageUrl}
           className="min-h-0 flex-1 border-0 bg-white"
         />
-      ) : note.url && !path ? (
-        <div className="relative min-h-0 flex-1">
-          <ArtifactPreview shareUrl={note.url} />
+      ) : note.url && (!path || pageUrl === null) ? (
+        <div className="relative flex min-h-0 flex-1">
+          <BoardArtifactWebview url={note.url} />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-4 text-center">

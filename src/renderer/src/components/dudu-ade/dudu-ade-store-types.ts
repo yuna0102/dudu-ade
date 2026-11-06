@@ -85,6 +85,8 @@ export type DuduAdeState = {
   setMissingAssets: (missing: ReadonlySet<string>, checked: ReadonlySet<string>) => void
   forgetAsset: (assetId: string) => void
   clearAssets: () => void
+  /** Replaces cut artifact links with the one full address each is the start of. */
+  repairAssetLinks: (fullUrls: readonly string[]) => void
   setDock: (patch: Partial<AssetDockState>) => void
   togglePinAsset: (assetId: string) => void
   setPreviewAsset: (assetId: string | null) => void

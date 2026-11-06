@@ -27,7 +27,8 @@ import { useBoardLinkRules } from './use-board-link-rules'
 import { BoardMissionMap } from './BoardMissionMap'
 import { ALL_WORKSPACES, BoardToolbar } from './BoardToolbar'
 import { useBoardAutoSync, useBoardViewModel } from './use-board-view-model'
-import { boardTerminalTitle } from './BoardTerminalCard'
+import { cardDisplayTitle } from './BoardTerminalCard'
+import { useArtifactIndexRepair } from './use-artifact-index-repair'
 import { BoardWorkspaceTabs } from './BoardWorkspaceTabs'
 import type { BoardCardChange } from './use-board-card-drag'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
@@ -336,6 +337,7 @@ export function InfiniteBoard(): React.JSX.Element {
 
   const viewportRect = visibleBoardRect(viewport, screen)
 
+  useArtifactIndexRepair(board.notes)
   const assetDrop = useBoardAssetDrop({ frames, toBoardPoint })
 
   const dotSize = GRID_DOT_SPACING * viewport.zoom
@@ -397,6 +399,7 @@ export function InfiniteBoard(): React.JSX.Element {
               onSelect={tools.setSelectedAreaId}
             />
             <BoardCards
+              viewportRect={viewportRect}
               liveKeys={liveKeys}
               collapsedKeys={collapsedKeys}
               terminalKeySet={terminalKeySet}
@@ -450,7 +453,7 @@ export function InfiniteBoard(): React.JSX.Element {
             zoom={viewport.zoom}
             offBoardTerminals={offBoardTerminals.map((terminal) => ({
               key: terminal.key,
-              title: boardTerminalTitle(terminal),
+              title: cardDisplayTitle(terminal, board.names),
               workspace: workspaceName(terminal.worktreeId, terminal.worktreePath)
             }))}
             workspaces={workspaces}

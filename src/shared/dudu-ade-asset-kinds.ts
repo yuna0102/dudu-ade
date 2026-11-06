@@ -90,14 +90,53 @@ export function homeDirFromPath(path: string): string | null {
   return match ? match[1] : null
 }
 
+/** Every claude.ai/artifact id seen so far has this length; a shorter one was cut. */
+export const ARTIFACT_ID_LENGTH = 22
+const SHORT_ARTIFACT_LINK = /^https:\/\/claude\.ai\/artifact\/([A-Za-z0-9_-]+)$/
+const MAX_LINK_ROWS = 4
+
+export function isCutArtifactLink(url: string): boolean {
+  const id = SHORT_ARTIFACT_LINK.exec(url)?.[1]
+  return id !== undefined && id.length < ARTIFACT_ID_LENGTH
+}
+
+/**
+ * An agent's screen wraps long lines itself, so the terminal does not mark them as wrapped and a link ends at
+ * the screen edge. A link cut at the end of a line goes on at the start of the next, after any margin or box edge.
+ */
+export function completeCutLink(url: string, rest: string, nextLines: readonly string[]): string {
+  if (!isCutArtifactLink(url) || /[^\s│┃|]/.test(rest)) {
+    return url
+  }
+  let joined = url
+  for (const line of nextLines.slice(0, MAX_LINK_ROWS)) {
+    const more = /^[\s│┃|]*([A-Za-z0-9_-]+)/.exec(line)?.[1]
+    if (!more) {
+      break
+    }
+    joined += more
+    if (!isCutArtifactLink(joined)) {
+      break
+    }
+  }
+  // Prose after the link would run past the length: then this was not a continuation.
+  const id = SHORT_ARTIFACT_LINK.exec(joined)?.[1]
+  return id?.length === ARTIFACT_ID_LENGTH ? joined : url
+}
+
 export function extractAssetReferences(
   lines: readonly string[],
   context: { baseDir: string; homeDir: string | null }
 ): ExtractedAssetReference[] {
   const found = new Map<string, ExtractedAssetReference>()
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     for (const match of line.matchAll(ARTIFACT_LINK_PATTERN)) {
-      found.set(match[0], { kind: 'artifact-link', location: match[0] })
+      const location = completeCutLink(
+        match[0],
+        line.slice((match.index ?? 0) + match[0].length),
+        lines.slice(index + 1)
+      )
+      found.set(location, { kind: 'artifact-link', location })
     }
     for (const match of line.matchAll(PATH_PATTERN)) {
       const raw = match[1]

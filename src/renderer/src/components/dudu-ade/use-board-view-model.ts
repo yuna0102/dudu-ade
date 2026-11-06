@@ -11,7 +11,7 @@ import { groupCardKeys, liveCardKeys, syncBoardTerminals } from './board-sync'
 import type { BoardTerminal } from './board-terminal-listing'
 import type { CategorySummary } from './BoardCategoryFrame'
 import type { MissionMapGroup } from './BoardMissionMap'
-import { boardTerminalTitle } from './BoardTerminalCard'
+import { cardDisplayTitle } from './BoardTerminalCard'
 import { ALL_WORKSPACES } from './BoardToolbar'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
 import { useDuduAdeStore, type CollectedAsset } from './dudu-ade-store'
@@ -149,7 +149,7 @@ export function useBoardViewModel({
           ? [
               {
                 key,
-                title: boardTerminalTitle(terminal),
+                title: cardDisplayTitle(terminal, board.names),
                 status: meta.get(key)?.status,
                 model: terminalModels[paneKeyOf(terminal)]
               }
@@ -167,7 +167,7 @@ export function useBoardViewModel({
         }
       })
       .filter((group) => group.items.length > 0)
-  }, [groups, board.categories, terminalsByKey, meta, terminalModels])
+  }, [groups, board.categories, board.names, terminalsByKey, meta, terminalModels])
 
   const minimapRects = useMemo(
     () => [
