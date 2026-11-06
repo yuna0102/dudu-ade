@@ -113,3 +113,17 @@ codesign --force --deep --sign - --entitlements resources/build/entitlements.mac
 - 22: 채팅 전환이 탭 전체를 닫던 문제 수정. 탭에 다른 창이 있으면 `terminal.close` 로 원본 창 하나만 닫습니다(`cli-chat-resume-close-terminal.ts`). 다른 작업이 도는 창이면 닫지 않고 안내합니다. 채팅 카드는 읽기 실패 시 "불러오는 중"에 머물지 않습니다.
 - 23: 창 이름으로 카드 이어받기(`board-identity.ts`), 복원 시드(`board-restore.ts`, 메인 `board-restore.ts`), 배치 저장과 되돌리기(`board-layout-seed.ts`, `use-board-layout-files.ts`, 메인 `board-layout-file.ts`). 저장 필드 names, seenAt, restoredFrom, restoredProgress, 카드 placed. 실행 확인 안 함.
 - 24: 레이아웃 파일 version 2(windows 포함), 자동 저장(`board-layout-autosave.ts`), 이름 기반 규칙 판단(`board-link-rule.ts`), 역할 이름은 desk.json 의 대화번호 기준(`main/dudu-ade/desk-session-names.ts`), 변환기 `scripts/dudu-ade/board-to-layout.mjs`. 저장 폴더 격리: 설치 앱만 실제 폴더를 쓰고 개발과 e2e 는 userData 안을 씁니다. 자동 동기화가 오래된 보드로 복원을 덮던 경합도 수정.
+
+## 9. 진행 현황 (1106 기준)
+
+| 구분                                                                         | 상태                                                  |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 보드 기본(무한 캔버스, 카드, 영역, 연결선, 메모, 자산 패널)                  | 구현, 설치 앱에서 사용 중                             |
+| 채팅 카드 실제 대화, 터미널/채팅 전환, 창 이름 기준 복원, 레이아웃 자동 저장 | 구현, 커밋 d18b359a 까지                              |
+| HTML 미리보기 보안(sandbox, 폼 저장 허용, 내용 해시 고정), UTF-8             | 구현, 최신 빌드 반영                                  |
+| 영역 색상과 이름 편집, 대기 창 알림 아이콘                                   | 구현, 최신 빌드 반영(알림 아이콘은 설치 후 확인)      |
+| 최신 빌드(d18b359a) 실제 설치 확인                                           | 미완료(사용자 설치 대기)                              |
+| 삭제된 아티팩트 링크는 로컬 파일로 열기                                      | 미구현(앱 기획 요청, INDEX.md 의 삭제 표시 기준 제안) |
+| 오픈소스 공개 준비(맥 전용 경로 정리)                                        | 계획 없음                                             |
+
+설치 후 확인 목록: 모든 창 카드 표시, 폼 저장 허용 흐름, 알림 아이콘, 영역 색상, 한글 표시, 채팅 카드 유지.
