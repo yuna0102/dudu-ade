@@ -7,6 +7,8 @@ export type TerminalAgentModel = {
   /** The conversation the process reports, and the one it was resumed from; either names the role in desk.json. */
   sessionId?: string
   resumeId?: string
+  /** The name given on the command line (`claude -n <name>`); a title cannot overwrite it. */
+  name?: string
 }
 
 /** One terminal sent input to another (runtime handles), at host time in ms. */

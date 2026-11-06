@@ -76,7 +76,7 @@ function withoutBlankAreas(
 ): BoardCategory[] {
   const liveKeys = new Set(live.map((card) => card.key))
   const known = new Set([
-    ...seed.areas.map((area) => area.name),
+    ...seed.areas.flatMap((area) => [area.name, ...(area.id ? [area.id] : [])]),
     ...seed.cards.flatMap((card) => (card.area ? [card.area] : []))
   ])
   const occupied = new Set(
@@ -85,7 +85,11 @@ function withoutBlankAreas(
     )
   )
   return categories.filter(
-    (category) => category.rect || known.has(category.name) || occupied.has(category.id)
+    (category) =>
+      category.rect ||
+      known.has(category.name) ||
+      known.has(category.id) ||
+      occupied.has(category.id)
   )
 }
 
@@ -147,12 +151,14 @@ export function applyRestore(
               (category) => category.name === seeded.name && !claimed.has(category.id)
             )
       const rect = seeded.rect ? { rect: seeded.rect } : {}
+      const autoName = seeded.autoName ? { autoName: seeded.autoName } : {}
       const collapsed = seeded.collapsed === undefined ? {} : { collapsed: seeded.collapsed }
       if (index === -1) {
         categories.push({
           id: seeded.id ?? newBoardId(),
           name: seeded.name,
           color: seeded.color,
+          ...autoName,
           anchor: seeded.anchor ?? { x: seeded.rect?.x ?? 0, y: seeded.rect?.y ?? 0 },
           ...rect,
           ...collapsed
@@ -163,6 +169,7 @@ export function applyRestore(
           ...categories[index],
           name: seeded.name,
           color: seeded.color,
+          ...autoName,
           ...rect,
           ...collapsed
         }

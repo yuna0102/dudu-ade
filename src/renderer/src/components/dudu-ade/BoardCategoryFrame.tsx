@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, LayoutGrid, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, LayoutGrid, Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
 import { isImeOwnedKeyboardEvent } from '@/lib/ime-composition-keyboard-event'
 import { cn } from '@/lib/utils'
-import {
-  CATEGORY_COLORS,
-  FRAME_LABEL,
-  type BoardCategory,
-  type BoardRect
-} from './board-layout-state'
+import { FRAME_LABEL, type BoardCategory, type BoardRect } from './board-layout-state'
 import { BUCKET_LABELS, type BoardAgentBucket } from './board-agent-labels'
 import { resizeAreaRect, type AreaEdges } from './board-areas'
+import { BoardColorPopover } from './BoardColorPopover'
 import { DUDU_ADE_COPY } from './dudu-ade-copy'
+import { isTyping } from './use-board-tool-keys'
 
 export type CategorySummary = {
   count: number
@@ -66,6 +69,12 @@ const RESIZE_HANDLES: {
   }
 ]
 
+/** What a rename saves: nothing for an empty or unchanged name. */
+export function nextAreaName(typed: string, current: string): string | null {
+  const name = typed.trim()
+  return name && name !== current ? name : null
+}
+
 /** Named, colored area behind a category's cards; its label row drags, renames, sorts and folds the group. */
 export function BoardCategoryFrame({
   category,
@@ -109,6 +118,27 @@ export function BoardCategoryFrame({
       setEditing(true)
     }
   }, [autoEdit])
+  const [colorOpen, setColorOpen] = useState(false)
+  const cancelled = useRef(false)
+  // A menu takes focus back as it closes, so what it asked for starts only after that.
+  const afterMenu = useRef<(() => void) | null>(null)
+  const startEditing = (): void => {
+    cancelled.current = false
+    setEditing(true)
+  }
+  useEffect(() => {
+    if (!selected) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'F2' && !isTyping(event.target)) {
+        event.preventDefault()
+        startEditing()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selected])
   const shown = draft ?? rect
   const edge = Math.max(8, 8 / zoom)
   const startResize =
@@ -174,12 +204,6 @@ export function BoardCategoryFrame({
     target.addEventListener('pointercancel', onUp)
   }
 
-  const nextColor = (): string =>
-    CATEGORY_COLORS[
-      (CATEGORY_COLORS.indexOf(category.color as (typeof CATEGORY_COLORS)[number]) + 1) %
-        CATEGORY_COLORS.length
-    ]
-
   return (
     <div
       data-board-frame={category.id}
@@ -193,100 +217,135 @@ export function BoardCategoryFrame({
         background: collapsed ? `${category.color}22` : `${category.color}0d`
       }}
     >
-      <div
-        data-board-card
-        data-board-frame-label
-        className="flex cursor-grab items-center gap-1.5 px-2 active:cursor-grabbing"
-        style={{ height: FRAME_LABEL - 4 }}
-        onPointerDown={startDrag}
-      >
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={collapsed ? DUDU_ADE_COPY.expand : DUDU_ADE_COPY.collapse}
-          title={collapsed ? DUDU_ADE_COPY.expand : DUDU_ADE_COPY.collapse}
+      <ContextMenu>
+        <ContextMenuTrigger asChild disabled={editing}>
+          <div
+            data-board-card
+            data-board-frame-label
+            className="flex cursor-grab items-center gap-1.5 px-2 active:cursor-grabbing"
+            style={{ height: FRAME_LABEL - 4 }}
+            onPointerDown={startDrag}
+          >
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={collapsed ? DUDU_ADE_COPY.expand : DUDU_ADE_COPY.collapse}
+              title={collapsed ? DUDU_ADE_COPY.expand : DUDU_ADE_COPY.collapse}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onToggleCollapse}
+            >
+              {collapsed ? <ChevronRight /> : <ChevronDown />}
+            </Button>
+            <BoardColorPopover
+              color={category.color}
+              open={colorOpen}
+              onOpenChange={setColorOpen}
+              onPick={onColor}
+            />
+            {editing ? (
+              <input
+                autoFocus
+                className="h-6 min-w-0 rounded border border-border bg-background px-1.5 text-sm font-semibold outline-none"
+                defaultValue={category.name}
+                onPointerDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !isImeOwnedKeyboardEvent(event)) {
+                    event.currentTarget.blur()
+                  } else if (event.key === 'Escape') {
+                    cancelled.current = true
+                    event.currentTarget.blur()
+                  }
+                }}
+                onBlur={(event) => {
+                  setEditing(false)
+                  const name = nextAreaName(event.currentTarget.value, category.name)
+                  if (name && !cancelled.current) {
+                    onRename(name)
+                  }
+                }}
+              />
+            ) : (
+              <span
+                className="truncate text-sm font-semibold"
+                style={{ color: category.color }}
+                title={DUDU_ADE_COPY.renameHint}
+                onDoubleClick={startEditing}
+              >
+                {category.name}
+              </span>
+            )}
+            {editing ? null : (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={DUDU_ADE_COPY.renameArea}
+                title={DUDU_ADE_COPY.renameArea}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={startEditing}
+              >
+                <Pencil />
+              </Button>
+            )}
+            <span className="shrink-0 text-2xs text-muted-foreground">{`${summary.count}개`}</span>
+            <div className="flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
+              {summary.buckets.attention > 0 ? (
+                <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-amber-700 dark:text-amber-300">
+                  {`${BUCKET_LABELS.attention} ${summary.buckets.attention}`}
+                </span>
+              ) : null}
+              {summary.buckets.working > 0 ? (
+                <span className="shrink-0">{`${BUCKET_LABELS.working} ${summary.buckets.working}`}</span>
+              ) : null}
+              {summary.models ? <span className="truncate">{summary.models}</span> : null}
+            </div>
+            <div className="flex-1" />
+            <div
+              className={cn('flex shrink-0 items-center')}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={DUDU_ADE_COPY.arrangeCategory}
+                title={DUDU_ADE_COPY.arrangeCategory}
+                onClick={onArrange}
+              >
+                <LayoutGrid />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={DUDU_ADE_COPY.deleteCategory}
+                title={DUDU_ADE_COPY.deleteCategory}
+                onClick={onDelete}
+              >
+                <X />
+              </Button>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={onToggleCollapse}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            afterMenu.current?.()
+            afterMenu.current = null
+          }}
         >
-          {collapsed ? <ChevronRight /> : <ChevronDown />}
-        </Button>
-        <button
-          type="button"
-          className="size-3.5 shrink-0 rounded-full border border-black/10"
-          style={{ background: category.color }}
-          aria-label={DUDU_ADE_COPY.categoryColor}
-          title={DUDU_ADE_COPY.categoryColor}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => onColor(nextColor())}
-        />
-        {editing ? (
-          <input
-            autoFocus
-            className="h-6 min-w-0 rounded border border-border bg-background px-1.5 text-sm font-semibold outline-none"
-            defaultValue={category.name}
-            onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !isImeOwnedKeyboardEvent(event)) {
-                event.currentTarget.blur()
-              } else if (event.key === 'Escape') {
-                setEditing(false)
-              }
-            }}
-            onBlur={(event) => {
-              setEditing(false)
-              const name = event.currentTarget.value.trim()
-              if (name && name !== category.name) {
-                onRename(name)
-              }
-            }}
-          />
-        ) : (
-          <span
-            className="truncate text-sm font-semibold"
-            style={{ color: category.color }}
-            title={DUDU_ADE_COPY.renameHint}
-            onDoubleClick={() => setEditing(true)}
-          >
-            {category.name}
-          </span>
-        )}
-        <span className="shrink-0 text-2xs text-muted-foreground">{`${summary.count}개`}</span>
-        <div className="flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
-          {summary.buckets.attention > 0 ? (
-            <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-amber-700 dark:text-amber-300">
-              {`${BUCKET_LABELS.attention} ${summary.buckets.attention}`}
-            </span>
-          ) : null}
-          {summary.buckets.working > 0 ? (
-            <span className="shrink-0">{`${BUCKET_LABELS.working} ${summary.buckets.working}`}</span>
-          ) : null}
-          {summary.models ? <span className="truncate">{summary.models}</span> : null}
-        </div>
-        <div className="flex-1" />
-        <div
-          className={cn('flex shrink-0 items-center')}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={DUDU_ADE_COPY.arrangeCategory}
-            title={DUDU_ADE_COPY.arrangeCategory}
-            onClick={onArrange}
-          >
-            <LayoutGrid />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={DUDU_ADE_COPY.deleteCategory}
-            title={DUDU_ADE_COPY.deleteCategory}
-            onClick={onDelete}
-          >
-            <X />
-          </Button>
-        </div>
-      </div>
+          <ContextMenuItem onSelect={() => (afterMenu.current = startEditing)}>
+            {DUDU_ADE_COPY.renameArea}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => (afterMenu.current = () => setColorOpen(true))}>
+            {DUDU_ADE_COPY.changeAreaColor}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={onToggleCollapse}>
+            {collapsed ? DUDU_ADE_COPY.expand : DUDU_ADE_COPY.collapse}
+          </ContextMenuItem>
+          <ContextMenuItem variant="destructive" onSelect={onDelete}>
+            {DUDU_ADE_COPY.deleteArea}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {summary.count === 0 && !collapsed ? (
         <div className="px-4 text-xs text-muted-foreground">{DUDU_ADE_COPY.emptyCategory}</div>
       ) : null}

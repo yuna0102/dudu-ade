@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { Copy, ExternalLink, LayoutDashboard, RefreshCw, SquareTerminal, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  ExternalLink,
+  LayoutDashboard,
+  RefreshCw,
+  SquareTerminal,
+  Trash2
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -54,7 +61,8 @@ function AssetTile({
 }): React.JSX.Element {
   const addAssetCard = useDuduAdeStore((s) => s.addAssetCard)
   const forgetAsset = useDuduAdeStore((s) => s.forgetAsset)
-  const sourceLabel = asset.source.terminalTitle || asset.source.branch || DUDU_ADE_COPY.sourceUnknown
+  const sourceLabel =
+    asset.source.terminalTitle || asset.source.branch || DUDU_ADE_COPY.sourceUnknown
   const workspaceLabel = asset.source.worktreePath.split('/').pop() ?? ''
   return (
     <div className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card">
@@ -101,7 +109,10 @@ function AssetTile({
             >
               <SquareTerminal />
             </IconAction>
-            <IconAction label={DUDU_ADE_COPY.copyPath} onClick={() => void copyAssetLocation(asset)}>
+            <IconAction
+              label={DUDU_ADE_COPY.copyPath}
+              onClick={() => void copyAssetLocation(asset)}
+            >
               <Copy />
             </IconAction>
             <IconAction label={DUDU_ADE_COPY.forget} onClick={() => forgetAsset(asset.id)}>
@@ -161,10 +172,15 @@ export function AssetGallery(): React.JSX.Element {
           {DUDU_ADE_COPY.assetsEmpty}
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek p-4">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
             {visible.map((asset) => (
-              <AssetTile key={asset.id} asset={asset} onBoard={!!cards[assetCardKey(asset.id)]} now={now} />
+              <AssetTile
+                key={asset.id}
+                asset={asset}
+                onBoard={!!cards[assetCardKey(asset.id)]}
+                now={now}
+              />
             ))}
           </div>
         </div>

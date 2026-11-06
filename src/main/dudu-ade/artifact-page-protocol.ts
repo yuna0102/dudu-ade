@@ -50,6 +50,15 @@ export function resolveGrantedPath(grant: PageGrant, urlPath: string): string | 
   return grant.folderAllowed || inside === grant.entry ? full : null
 }
 
+/** Saved artifact pages carry no charset (claude.ai adds it on its side), and a file URL answers without one, so Korean text came out as Latin-1 mojibake. */
+export function withTextCharset(headers: Headers): Headers {
+  const type = headers.get('content-type') ?? ''
+  if (/^text\/(html|css|plain|xml)\b/i.test(type) && !/charset=/i.test(type)) {
+    headers.set('content-type', `${type.split(';')[0].trim()}; charset=utf-8`)
+  }
+  return headers
+}
+
 async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const grant = grants.get(url.hostname)
@@ -66,7 +75,7 @@ async function handleRequest(request: Request): Promise<Response> {
   }
   const file = await net.fetch(pathToFileURL(path).toString())
   // A sandboxed page has an opaque origin, so its own relative fetch() counts as cross-origin. The token is the only way in.
-  const headers = new Headers(file.headers)
+  const headers = withTextCharset(new Headers(file.headers))
   headers.set('Access-Control-Allow-Origin', '*')
   return new Response(file.body, { status: file.status, headers })
 }

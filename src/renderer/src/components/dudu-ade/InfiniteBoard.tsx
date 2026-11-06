@@ -16,7 +16,7 @@ import {
   type BoardViewport,
   type LayoutPreset
 } from './board-layout-state'
-import { arrangeBoard } from './board-sync'
+import { addMissingCards, arrangeBoard } from './board-sync'
 import { AssetDock } from './AssetDock'
 import { AssetLightbox } from './AssetLightbox'
 import { BoardFrames } from './BoardFrames'
@@ -334,6 +334,14 @@ export function InfiniteBoard(): React.JSX.Element {
   }
 
   const offBoardTerminals = terminals.filter((terminal) => !liveKeys.includes(terminal.key))
+  const addAllOffBoard = (): void => {
+    const list = terminals.map((terminal) => ({
+      key: terminal.key,
+      categoryName:
+        meta.get(terminal.key)?.tabName ?? workspaceName(terminal.worktreeId, terminal.worktreePath)
+    }))
+    updateBoard((current) => addMissingCards(current, list, true) ?? {})
+  }
 
   const viewportRect = visibleBoardRect(viewport, screen)
 
@@ -469,6 +477,7 @@ export function InfiniteBoard(): React.JSX.Element {
               createCategory(DUDU_ADE_COPY.newCategory, { x: center.x - 180, y: center.y - 80 })
             }}
             onAddTerminal={addTerminalToBoard}
+            onAddAllOffBoard={addAllOffBoard}
             onAddNote={(kind, note) => {
               const center = screenCenterPoint()
               return addNote(kind, { x: center.x - 140, y: center.y - 120 }, note)

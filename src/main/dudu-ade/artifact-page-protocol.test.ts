@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ ipcMain: { handle: vi.fn() }, net: {}, protocol: {} }))
 
-import { grantForPage, resolveGrantedPath } from './artifact-page-protocol'
+import { grantForPage, resolveGrantedPath, withTextCharset } from './artifact-page-protocol'
 
 describe('artifact page paths', () => {
   const grant = grantForPage('/h/out/page/index.html', '/h')
@@ -26,5 +26,25 @@ describe('artifact page paths', () => {
       expect(resolveGrantedPath(home, '/index.html')).toBe(page)
       expect(resolveGrantedPath(home, '/.ssh/id_rsa')).toBeNull()
     }
+  })
+})
+
+describe('artifact page charset', () => {
+  it('adds utf-8 to text types that have none, and leaves the rest alone', () => {
+    expect(withTextCharset(new Headers({ 'content-type': 'text/html' })).get('content-type')).toBe(
+      'text/html; charset=utf-8'
+    )
+    expect(withTextCharset(new Headers({ 'content-type': 'text/css' })).get('content-type')).toBe(
+      'text/css; charset=utf-8'
+    )
+    expect(
+      withTextCharset(new Headers({ 'content-type': 'text/html; charset=euc-kr' })).get(
+        'content-type'
+      )
+    ).toBe('text/html; charset=euc-kr')
+    expect(withTextCharset(new Headers({ 'content-type': 'image/png' })).get('content-type')).toBe(
+      'image/png'
+    )
+    expect(withTextCharset(new Headers()).get('content-type')).toBeNull()
   })
 })

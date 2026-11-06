@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { TerminalAgentModel } from '../../../../shared/dudu-ade-terminal-models'
 import { agentBucket, modelDistribution, paneKeyOf } from './board-agent-labels'
 import {
@@ -7,7 +7,7 @@ import {
   isTerminalCardKey,
   type BoardLayout
 } from './board-layout-state'
-import { groupCardKeys, liveCardKeys, syncBoardTerminals } from './board-sync'
+import { addMissingCards, groupCardKeys, liveCardKeys, syncBoardTerminals } from './board-sync'
 import type { BoardTerminal } from './board-terminal-listing'
 import type { CategorySummary } from './BoardCategoryFrame'
 import type { MissionMapGroup } from './BoardMissionMap'
@@ -20,6 +20,8 @@ import type { BoardTerminalMeta } from './use-board-terminals'
 const UNCATEGORIZED_COLOR = '#8E8C99'
 // Tabs restore a moment after startup; after this, terminals without a known tab sort by workspace.
 const TAB_LOOKUP_GRACE_MS = 8_000
+/** A running window with no card gets one this long after the board last changed. */
+const ENSURE_CARDS_MS = 2_500
 
 /** Classifies and places new terminals; saved positions and the user's category edits always win. */
 export function useBoardAutoSync({
@@ -42,26 +44,51 @@ export function useBoardAutoSync({
     const timer = setTimeout(() => setGraceOver(true), TAB_LOOKUP_GRACE_MS)
     return () => clearTimeout(timer)
   }, [])
+  const namedTerminals = useCallback(
+    (ready: boolean): { key: string; categoryName: string | null }[] =>
+      terminals.map((terminal) => {
+        const info = meta.get(terminal.key)
+        return {
+          key: terminal.key,
+          categoryName:
+            info?.tabFound || ready
+              ? (info?.tabName ?? workspaceName(terminal.worktreeId, terminal.worktreePath))
+              : null
+        }
+      }),
+    [terminals, meta, workspaceName]
+  )
+  // Whatever kept a running window from getting its card (a board waiting to arrange, a name that never
+  // resolved), it gets one after the tabs have had their time and nothing else changed for a moment.
+  useEffect(() => {
+    if (!loaded || !graceOver || terminals.length === 0) {
+      return
+    }
+    const timer = setTimeout(() => {
+      const current = useDuduAdeStore.getState().board
+      if (!current.autoAddTerminals) {
+        return
+      }
+      const list = namedTerminals(true)
+      if (addMissingCards(current, list, false)) {
+        useDuduAdeStore
+          .getState()
+          .updateBoard((latest) => addMissingCards(latest, list, false) ?? {})
+      }
+    }, ENSURE_CARDS_MS)
+    return () => clearTimeout(timer)
+  }, [board, terminals, loaded, graceOver, namedTerminals])
   useEffect(() => {
     if (!loaded) {
       return
     }
-    const list = terminals.map((terminal) => {
-      const info = meta.get(terminal.key)
-      const ready = info?.tabFound || graceOver
-      return {
-        key: terminal.key,
-        categoryName: ready
-          ? (info?.tabName ?? workspaceName(terminal.worktreeId, terminal.worktreePath))
-          : null
-      }
-    })
+    const list = namedTerminals(graceOver)
     // The store, not this render's board: restoring may have just run in this same commit, and an update
     // worked out from the older board would put back every card it moved.
     if (syncBoardTerminals(useDuduAdeStore.getState().board, list)) {
       updateBoard((current) => syncBoardTerminals(current, list) ?? {})
     }
-  }, [board, terminals, meta, loaded, graceOver, workspaceName, updateBoard])
+  }, [board, loaded, graceOver, namedTerminals, updateBoard])
 }
 
 /** Derived board view: which cards draw, category frames, their summaries, the mission map and minimap. */

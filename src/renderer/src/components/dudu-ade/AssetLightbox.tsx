@@ -32,7 +32,8 @@ export function AssetLightbox(): React.JSX.Element | null {
   if (!asset) {
     return null
   }
-  const sourceLabel = asset.source.terminalTitle || asset.source.branch || DUDU_ADE_COPY.sourceUnknown
+  const sourceLabel =
+    asset.source.terminalTitle || asset.source.branch || DUDU_ADE_COPY.sourceUnknown
   return (
     <div
       className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 p-6"
@@ -65,13 +66,31 @@ export function AssetLightbox(): React.JSX.Element | null {
             <LayoutDashboard />
             {DUDU_ADE_COPY.addToBoard}
           </Button>
-          <Button variant="ghost" size="icon-xs" aria-label={DUDU_ADE_COPY.copyPath} title={DUDU_ADE_COPY.copyPath} onClick={() => void copyAssetLocation(asset)}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={DUDU_ADE_COPY.copyPath}
+            title={DUDU_ADE_COPY.copyPath}
+            onClick={() => void copyAssetLocation(asset)}
+          >
             <Copy />
           </Button>
-          <Button variant="ghost" size="icon-xs" aria-label={DUDU_ADE_COPY.openOutside} title={DUDU_ADE_COPY.openOutside} onClick={() => openCollectedAsset(asset)}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={DUDU_ADE_COPY.openOutside}
+            title={DUDU_ADE_COPY.openOutside}
+            onClick={() => openCollectedAsset(asset)}
+          >
             <ExternalLink />
           </Button>
-          <Button variant="ghost" size="icon-xs" aria-label={DUDU_ADE_COPY.close} title={DUDU_ADE_COPY.close} onClick={() => setPreviewAsset(null)}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={DUDU_ADE_COPY.close}
+            title={DUDU_ADE_COPY.close}
+            onClick={() => setPreviewAsset(null)}
+          >
             <X />
           </Button>
         </div>

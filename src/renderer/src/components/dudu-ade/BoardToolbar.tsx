@@ -96,6 +96,7 @@ export function BoardToolbar({
   onZoomBy,
   onCreateCategory,
   onAddTerminal,
+  onAddAllOffBoard,
   onAddNote,
   onPreset,
   tool,
@@ -126,6 +127,7 @@ export function BoardToolbar({
   onZoomBy: (factor: number) => void
   onCreateCategory: () => void
   onAddTerminal: (key: string) => void
+  onAddAllOffBoard: () => void
   onAddNote: (kind: BoardNoteKind, note?: Partial<BoardNote>) => string
   onPreset: (preset: LayoutPreset) => void
   tool: BoardTool
@@ -202,6 +204,12 @@ export function BoardToolbar({
         </>
       ) : null}
       <div className="mx-0.5 h-4 w-px bg-border" />
+      {offBoardTerminals.length > 0 ? (
+        <Button variant="ghost" size="xs" onClick={onAddAllOffBoard}>
+          <SquareTerminal />
+          {`${DUDU_ADE_COPY.addOffBoard} ${offBoardTerminals.length}`}
+        </Button>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="xs">

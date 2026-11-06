@@ -75,7 +75,10 @@ export function syncBoardTerminals(
     if (terminal.categoryName === null || terminal.key in categoryOf) {
       continue
     }
-    let category = categories.find((entry) => entry.name === terminal.categoryName)
+    // A renamed area still takes the windows it was made for.
+    let category =
+      categories.find((entry) => entry.name === terminal.categoryName) ??
+      categories.find((entry) => entry.autoName === terminal.categoryName)
     if (!category) {
       category = {
         id: newBoardId(),
@@ -92,7 +95,8 @@ export function syncBoardTerminals(
   const hidden = new Set(board.hiddenKeys)
   const terminalKeys = new Set(terminals.map((terminal) => terminal.key))
   let next: BoardLayout = { ...board, categories, categoryOf }
-  const allReady = terminals.length > 0 && terminals.every((terminal) => terminal.categoryName !== null)
+  const allReady =
+    terminals.length > 0 && terminals.every((terminal) => terminal.categoryName !== null)
 
   if (board.arrangePending && board.autoAddTerminals && allReady) {
     const cards = { ...next.cards }
@@ -102,12 +106,17 @@ export function syncBoardTerminals(
       }
     }
     next = { ...next, cards }
-    return { ...arrangeBoard(next, liveCardKeys(next, terminalKeys), 'grid'), categoryOf, arrangePending: false }
+    return {
+      ...arrangeBoard(next, liveCardKeys(next, terminalKeys), 'grid'),
+      categoryOf,
+      arrangePending: false
+    }
   }
 
   if (board.autoAddTerminals && !board.arrangePending) {
     const cards = { ...next.cards }
-    const live = (): BoardCardGeometry[] => liveCardKeys({ ...next, cards }, terminalKeys).map((key) => cards[key])
+    const live = (): BoardCardGeometry[] =>
+      liveCardKeys({ ...next, cards }, terminalKeys).map((key) => cards[key])
     for (const terminal of terminals) {
       if (terminal.categoryName === null || cards[terminal.key] || hidden.has(terminal.key)) {
         continue
@@ -125,18 +134,48 @@ export function syncBoardTerminals(
       } else {
         // A category's first card opens a new column to the right of everything.
         const bounds = boundsOf(occupied)
-        const frameOrigin = { x: bounds ? bounds.x + bounds.w + GROUP_GAP : 0, y: bounds ? bounds.y : 0 }
+        const frameOrigin = {
+          x: bounds ? bounds.x + bounds.w + GROUP_GAP : 0,
+          y: bounds ? bounds.y : 0
+        }
         origin = { x: frameOrigin.x + FRAME_PAD, y: frameOrigin.y + FRAME_PAD + FRAME_LABEL }
         if (category) {
           const index = categories.indexOf(category)
           categories[index] = { ...category, anchor: frameOrigin }
         }
       }
-      cards[terminal.key] = findFreeSlot(occupied, TERMINAL_CARD_SIZE, members.length > 0 ? 3 : 1, origin)
+      cards[terminal.key] = findFreeSlot(
+        occupied,
+        TERMINAL_CARD_SIZE,
+        members.length > 0 ? 3 : 1,
+        origin
+      )
       changed = true
     }
     next = { ...next, cards }
   }
 
   return changed ? { categories, categoryOf, cards: next.cards } : null
+}
+
+/**
+ * Gives every running terminal that has no card a place, whatever its name state and whether the board was
+ * waiting to arrange: the card sits in its tab's area, else its workspace's. `includeHidden` also brings back
+ * windows the user hid, for an explicit request; the automatic pass leaves those alone.
+ */
+export function addMissingCards(
+  board: BoardLayout,
+  terminals: readonly SyncTerminal[],
+  includeHidden: boolean
+): Partial<BoardLayout> | null {
+  const keys = new Set(terminals.map((terminal) => terminal.key))
+  const hiddenKeys = includeHidden
+    ? board.hiddenKeys.filter((key) => !keys.has(key))
+    : board.hiddenKeys
+  const unhidden = hiddenKeys.length === board.hiddenKeys.length ? {} : { hiddenKeys }
+  const placed = syncBoardTerminals(
+    { ...board, hiddenKeys, autoAddTerminals: true, arrangePending: false },
+    terminals
+  )
+  return placed || unhidden.hiddenKeys ? { ...unhidden, ...placed } : null
 }

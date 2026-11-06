@@ -1,3 +1,4 @@
+import { isHexColor } from './board-area-colors'
 import {
   CATEGORY_COLORS,
   type BoardCardGeometry,
@@ -28,6 +29,7 @@ export type SeedLink = {
 export type SeedArea = {
   id?: string
   name: string
+  autoName?: string
   color: string
   rect: BoardRect | null
   anchor?: { x: number; y: number }
@@ -252,7 +254,8 @@ export function parseRestoreSeed(text: string): RestoreSeed | null {
         {
           ...(typeof area.id === 'string' ? { id: area.id } : {}),
           name: area.name,
-          color: typeof area.color === 'string' ? area.color : CATEGORY_COLORS[0],
+          color: isHexColor(area.color) ? area.color : CATEGORY_COLORS[0],
+          ...(typeof area.autoName === 'string' ? { autoName: area.autoName } : {}),
           rect,
           ...(anchor ? { anchor } : {}),
           ...(area.collapsed === true ? { collapsed: true } : {})

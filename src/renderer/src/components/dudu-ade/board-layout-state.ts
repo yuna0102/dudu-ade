@@ -26,6 +26,8 @@ export type BoardCategory = {
   collapsed?: boolean
   /** Frame position while the category has no cards. */
   anchor: { x: number; y: number }
+  /** The name the area first had, so windows still find it after the user renames it. */
+  autoName?: string
   /** An area the user drew or resized; the frame stays this big and only grows to wrap its cards. */
   rect?: BoardRect
 }

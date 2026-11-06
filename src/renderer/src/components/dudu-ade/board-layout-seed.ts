@@ -109,6 +109,7 @@ export function buildLayoutSeed(
       id: entry.id,
       name: entry.name,
       color: entry.color,
+      ...(entry.autoName ? { autoName: entry.autoName } : {}),
       rect: entry.rect ?? null,
       anchor: entry.anchor,
       ...(entry.collapsed ? { collapsed: true } : {}),
@@ -158,7 +159,10 @@ export function mergeWithPrevious(
   const keptCards = previous.cards
     .filter((card) => off(card.name))
     .map((card) => {
-      const area = areas.find((entry) => entry.id === card.areaId || entry.name === card.area)
+      // By id first: two areas can share a name.
+      const area =
+        areas.find((entry) => entry.id === card.areaId) ??
+        areas.find((entry) => entry.name === card.area)
       area?.members.push(card.name)
       return { ...card, area: area?.name ?? null, ...(area ? { areaId: area.id } : {}) }
     })

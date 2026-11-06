@@ -87,6 +87,10 @@ export function useBoardIdentity(args: {
     const timer = setTimeout(() => setNamingOpen(true), FIRST_NAMING_WAIT_MS)
     return () => clearTimeout(timer)
   }, [hasModels])
+  const knownNames = useMemo(
+    () => new Set([...(seed?.cards ?? []), ...(saved.seed?.cards ?? [])].map((card) => card.name)),
+    [seed, saved.seed]
+  )
   const identities = useMemo(
     () =>
       cardIdentities(
@@ -98,9 +102,13 @@ export function useBoardIdentity(args: {
         (terminal) => {
           const model = terminalModels[paneKeyOf(terminal)]
           return [model?.resumeId, model?.sessionId]
+        },
+        {
+          startedNameOf: (terminal) => terminalModels[paneKeyOf(terminal)]?.name,
+          knownNames
         }
       ),
-    [terminals, meta, seed, providerIds, deskNames, terminalModels]
+    [terminals, meta, seed, providerIds, deskNames, terminalModels, knownNames]
   )
   const board = useDuduAdeStore((state) => state.board)
   useEffect(() => {

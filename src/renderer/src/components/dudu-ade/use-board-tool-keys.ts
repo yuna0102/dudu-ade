@@ -11,7 +11,7 @@ const ARROWS: Record<string, { x: number; y: number }> = {
   ArrowDown: { x: 0, y: 1 }
 }
 
-const isTyping = (target: EventTarget | null): boolean =>
+export const isTyping = (target: EventTarget | null): boolean =>
   target instanceof Element && target.closest('input, textarea, select, [contenteditable]') !== null
 
 /** The click closing a gesture this hook handled must not also reach the card under it. */

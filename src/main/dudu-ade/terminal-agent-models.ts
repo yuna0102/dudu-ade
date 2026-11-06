@@ -56,6 +56,11 @@ export function effortFromCommand(command: string): string | null {
   return /\s--effort[\s=](\S+)/.exec(command)?.[1] ?? null
 }
 
+/** `-n <name>` from the command line; ps drops the quotes, so the name runs to the next flag. */
+export function nameFromCommand(command: string): string | null {
+  return /\s(?:-n|--name)[\s=]+([^-\s][^]*?)(?=\s+--?[a-zA-Z]|$)/.exec(command)?.[1]?.trim() || null
+}
+
 /** Claude Code names a project folder after its cwd with every non-alphanumeric character as '-'. */
 export function claudeProjectDirName(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-')
@@ -182,11 +187,13 @@ export async function readTerminalAgentModels(): Promise<Record<string, Terminal
         (await sessionLogModel(configDir, pid)) ?? /\s--model[\s=](\S+)/.exec(command)?.[1] ?? null
       const sessionId = await sessionIdOf(configDir, pid)
       const resumeId = /\s--resume[\s=](\S+)/.exec(command)?.[1]
+      const name = nameFromCommand(command)
       result[paneKey] = {
         model,
         effort: effortFromCommand(command),
         ...(sessionId ? { sessionId } : {}),
-        ...(resumeId ? { resumeId } : {})
+        ...(resumeId ? { resumeId } : {}),
+        ...(name ? { name } : {})
       }
     })
   )

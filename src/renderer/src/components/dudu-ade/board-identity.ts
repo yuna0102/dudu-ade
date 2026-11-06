@@ -16,10 +16,17 @@ const DAY_MS = 24 * 60 * 60 * 1000
 /** A card key unnamed and dead this long is forgotten; named ones wait for their window to come back. */
 export const DEAD_CARD_TTL_MS = 30 * DAY_MS
 
+/** A title without the status mark an agent puts in front of it ("◑ 헤드" is 헤드). */
+export function stripStatusMark(title: string | null | undefined): string | null {
+  return title?.replace(/^[^\p{L}\p{N}]+/u, '').trim() || null
+}
+
 /**
  * Names cards by window. The conversation is the steadiest: the desk's table says which role it is, and an
  * agent can overwrite a title but not that. Then the pane title, then the tab's own title. A chat also goes by
- * the restore file's conversation table. Generated titles change, so they are never used.
+ * the restore file's conversation table. Marks an agent adds in front of a title are dropped. A window with no
+ * name of its own goes by the name it was started with, or by its title when that is a name the saved layout knows;
+ * other generated titles change, so they are never used.
  */
 export function cardIdentities(
   terminals: readonly BoardTerminal[],
@@ -27,7 +34,11 @@ export function cardIdentities(
   chatNames: Readonly<Record<string, string>>,
   providerIds: Readonly<Record<string, string>>,
   deskNames: Readonly<Record<string, string>> = {},
-  sessionIdsOf: (terminal: BoardTerminal) => readonly (string | undefined)[] = () => []
+  sessionIdsOf: (terminal: BoardTerminal) => readonly (string | undefined)[] = () => [],
+  fallback: {
+    startedNameOf?: (terminal: BoardTerminal) => string | undefined
+    knownNames?: ReadonlySet<string>
+  } = {}
 ): CardIdentity[] {
   return terminals.map((terminal) => {
     const sessions = terminal.chat ? [providerIds[terminal.key]] : sessionIdsOf(terminal)
@@ -35,10 +46,17 @@ export function cardIdentities(
     if (desk) {
       return { key: terminal.key, name: desk, fromDesk: true }
     }
-    const raw = terminal.chat
-      ? (chatNames[providerIds[terminal.key] ?? ''] ?? tabNameOf(terminal.key))
-      : (terminal.paneTitle ?? tabNameOf(terminal.key))
-    return { key: terminal.key, name: raw?.trim() || null }
+    if (terminal.chat) {
+      const raw = chatNames[providerIds[terminal.key] ?? ''] ?? tabNameOf(terminal.key)
+      return { key: terminal.key, name: raw?.trim() || null }
+    }
+    const title = stripStatusMark(terminal.title)
+    const name =
+      stripStatusMark(terminal.paneTitle) ??
+      stripStatusMark(tabNameOf(terminal.key)) ??
+      stripStatusMark(fallback.startedNameOf?.(terminal)) ??
+      (title && fallback.knownNames?.has(title) ? title : null)
+    return { key: terminal.key, name }
   })
 }
 

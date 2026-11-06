@@ -43,7 +43,12 @@ export function BoardFrames({
             }
           }
           onMoveBy={(dx, dy) => store().moveCategory(category.id, keys, dx, dy)}
-          onRename={(name) => store().updateCategory(category.id, { name })}
+          onRename={(name) =>
+            store().updateCategory(category.id, {
+              name,
+              autoName: category.autoName ?? category.name
+            })
+          }
           onColor={(color) => store().updateCategory(category.id, { color })}
           onToggleCollapse={() =>
             store().updateCategory(category.id, { collapsed: !category.collapsed })
